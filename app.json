@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "BOOKReader",
+    "slug": "bookreader",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "bookreader",
+    "userInterfaceStyle": "dark",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.uta33.bookreader",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F0F0F"
+      },
+      "package": "com.uta33.bookreader",
+      "permissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.WAKE_LOCK"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-document-picker",
+      ["expo-av", { "microphonePermission": false }]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
