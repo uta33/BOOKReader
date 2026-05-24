@@ -3,7 +3,6 @@ name: Build Android APK
 on:
   push:
     branches:
-      - claude/pdf-text-to-speech-5ZH34
       - main
   workflow_dispatch:
 

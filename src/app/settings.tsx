@@ -72,9 +72,9 @@ export default function SettingsScreen() {
             soundRef.current = null;
           }
         });
-      } catch (e: any) {
+      } catch (e: unknown) {
         setLoadingVoice(null);
-        Alert.alert('エラー', `試聴できませんでした: ${e.message}`);
+        Alert.alert('エラー', `試聴できませんでした: ${e instanceof Error ? e.message : String(e)}`);
       }
     },
     [playingVoice, speakingRate, pitch, stopCurrentPreview]
@@ -104,9 +104,9 @@ export default function SettingsScreen() {
           soundRef.current = null;
         }
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       setLoadingVoice(null);
-      Alert.alert('エラー', e.message);
+      Alert.alert('エラー', e instanceof Error ? e.message : String(e));
     }
   }, [voiceName, speakingRate, pitch, stopCurrentPreview]);
 

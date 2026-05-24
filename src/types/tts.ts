@@ -3,8 +3,3 @@ export interface TTSOptions {
   speakingRate: number;
   pitch: number;
 }
-
-export interface CachedAudio {
-  sentenceId: string;
-  filePath: string;
-}

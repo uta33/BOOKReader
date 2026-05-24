@@ -26,7 +26,6 @@ export default function ReaderScreen() {
     setCurrentBook,
     setCurrentSentenceIdx,
     setGenerating,
-    reset,
   } = useReaderStore();
 
   const sentences = book?.sentences ?? [];
@@ -49,8 +48,8 @@ export default function ReaderScreen() {
           cachedSentenceIds: sentences.slice(0, done).map((s) => s.id),
         });
       });
-    } catch (e: any) {
-      Alert.alert('エラー', e.message);
+    } catch (e: unknown) {
+      Alert.alert('エラー', e instanceof Error ? e.message : String(e));
     } finally {
       setGenerating(false);
     }

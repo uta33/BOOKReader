@@ -45,8 +45,8 @@ export function usePdfExtraction() {
       };
 
       addBook(book);
-    } catch (e: any) {
-      setError(e.message ?? 'ファイルの読み込みに失敗しました');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'ファイルの読み込みに失敗しました');
     } finally {
       setLoading(false);
     }
