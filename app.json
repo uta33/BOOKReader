@@ -15,10 +15,6 @@
       }
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0F0F0F"
-      },
       "package": "com.uta33.bookreader",
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
