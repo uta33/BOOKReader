@@ -4,7 +4,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useAudioSession } from '../hooks/useAudioSession';
 import { useLibraryStore } from '../store/libraryStore';
 import { useSettingsStore } from '../store/settingsStore';
-import '../../global.css';
 
 export default function RootLayout() {
   useAudioSession();
