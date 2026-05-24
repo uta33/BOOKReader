@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,13 @@ export default function HomeScreen() {
   const router = useRouter();
   const { books, removeBook } = useLibraryStore();
   const { currentBookId } = useReaderStore();
-  const { pickAndImport, loading } = usePdfExtraction();
+  const { pickAndImport, loading, error } = usePdfExtraction();
+
+  useEffect(() => {
+    if (error) {
+      Alert.alert('読み込みエラー', error, [{ text: 'OK' }]);
+    }
+  }, [error]);
 
   const openBook = (id: string) => {
     router.push(`/reader/${id}`);
