@@ -27,11 +27,16 @@ jobs:
         run: |
           echo "EXPO_PUBLIC_GOOGLE_TTS_API_KEY=${{ secrets.GOOGLE_TTS_API_KEY }}" > .env
 
-      - name: Build Android APK (preview)
+      - name: Setup EAS
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Initialize EAS project
+        run: eas init --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Run EAS Build
         run: eas build --platform android --profile preview --non-interactive
