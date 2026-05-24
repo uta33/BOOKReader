@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { buildSentences } from '../services/sentenceSplitter';
+import { extractTextFromFile } from '../services/pdfExtractor';
 import { useLibraryStore } from '../store/libraryStore';
 import { Book } from '../types/book';
 
@@ -13,7 +14,7 @@ export function usePdfExtraction() {
   const pickAndImport = useCallback(async () => {
     setError(null);
     const result = await DocumentPicker.getDocumentAsync({
-      type: 'application/pdf',
+      type: ['application/pdf', 'text/plain'],
       copyToCacheDirectory: true,
     });
     if (result.canceled || !result.assets?.length) return;
@@ -24,32 +25,19 @@ export function usePdfExtraction() {
       const destDir = `${FileSystem.documentDirectory}books/`;
       await FileSystem.makeDirectoryAsync(destDir, { intermediates: true });
       const bookId = `book_${Date.now()}`;
-      const destUri = `${destDir}${bookId}.pdf`;
+      const isTxt = asset.name.toLowerCase().endsWith('.txt');
+      const destUri = `${destDir}${bookId}${isTxt ? '.txt' : '.pdf'}`;
       await FileSystem.copyAsync({ from: asset.uri, to: destUri });
 
-      // Attempt expo-pdf-text-extract (EAS build only)
-      let pageTexts: { page: number; text: string }[] = [];
-      try {
-        const pdfExtract = require('expo-pdf-text-extract');
-        const pageCount = await pdfExtract.getPageCount(destUri);
-        for (let i = 1; i <= pageCount; i++) {
-          const text = await pdfExtract.extractText(destUri, i);
-          pageTexts.push({ page: i, text });
-        }
-      } catch {
-        // Fallback: treat filename as single-sentence demo
-        pageTexts = [{ page: 1, text: asset.name.replace('.pdf', '') }];
-      }
-
+      const pageTexts = await extractTextFromFile(destUri, asset.name);
       const sentences = buildSentences(pageTexts);
-      const totalPages = pageTexts.length;
-      const title = asset.name.replace(/\.pdf$/i, '');
+      const title = asset.name.replace(/\.(pdf|txt)$/i, '');
 
       const book: Book = {
         id: bookId,
         title,
         uri: destUri,
-        totalPages,
+        totalPages: Math.max(pageTexts.length, 1),
         sentences,
         lastSentenceIdx: 0,
         cachedSentenceIds: [],
@@ -58,7 +46,7 @@ export function usePdfExtraction() {
 
       addBook(book);
     } catch (e: any) {
-      setError(e.message ?? 'PDF import failed');
+      setError(e.message ?? 'ファイルの読み込みに失敗しました');
     } finally {
       setLoading(false);
     }
