@@ -23,7 +23,7 @@
       ]
     },
     "plugins": [
-      "expo-router",
+      ["expo-router", { "root": "src/app" }],
       "expo-document-picker",
       ["expo-av", { "microphonePermission": false }]
     ],
