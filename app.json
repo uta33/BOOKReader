@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "BOOKReader",
+    "slug": "bookreader",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "bookreader",
+    "userInterfaceStyle": "dark",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.uta33.bookreader",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"]
+      }
+    },
+    "android": {
+      "package": "com.uta33.bookreader",
+      "permissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.WAKE_LOCK"
+      ]
+    },
+    "plugins": [
+      ["expo-router", { "root": "src/app" }],
+      "expo-document-picker",
+      ["expo-av", { "microphonePermission": false }]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9a91c937-2890-431c-a583-30ed11eb9fd3"
+      }
+    }
+  }
+}
