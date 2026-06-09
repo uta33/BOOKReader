@@ -2,13 +2,15 @@ import { useCallback, useEffect, useRef } from 'react';
 import { Audio } from 'expo-av';
 import { useReaderStore } from '../store/readerStore';
 import { useLibraryStore } from '../store/libraryStore';
-import { audioCachePath } from '../services/googleTTS';
+import { useSettingsStore } from '../store/settingsStore';
+import { audioCachePath, generateAndCache } from '../services/googleTTS';
 import { Sentence } from '../types/book';
 
 export function useAudioPlayer(bookId: string, sentences: Sentence[]) {
   const soundRef = useRef<Audio.Sound | null>(null);
   const { currentSentenceIdx, isPlaying, setCurrentSentenceIdx, setPlaying } = useReaderStore();
   const { updateBook } = useLibraryStore();
+  const { voiceName, speakingRate, pitch } = useSettingsStore();
 
   const stopCurrent = useCallback(async () => {
     if (soundRef.current) {
@@ -25,7 +27,10 @@ export function useAudioPlayer(bookId: string, sentences: Sentence[]) {
         return;
       }
       await stopCurrent();
-      const path = audioCachePath(bookId, sentences[idx].id);
+      // キャッシュ済みなら即返り、未生成ならその場で生成する
+      const options = { voiceName, speakingRate, pitch };
+      const path = audioCachePath(bookId, sentences[idx].id, options);
+      await generateAndCache(sentences[idx].text, options, path);
       const { sound } = await Audio.Sound.createAsync(
         { uri: path },
         { shouldPlay: true }
@@ -41,7 +46,7 @@ export function useAudioPlayer(bookId: string, sentences: Sentence[]) {
         }
       });
     },
-    [bookId, sentences, stopCurrent, setCurrentSentenceIdx, setPlaying, updateBook]
+    [bookId, sentences, voiceName, speakingRate, pitch, stopCurrent, setCurrentSentenceIdx, setPlaying, updateBook]
   );
 
   const play = useCallback(async () => {

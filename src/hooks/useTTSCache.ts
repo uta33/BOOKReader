@@ -3,14 +3,18 @@ import { generateAndCache, audioCachePath } from '../services/googleTTS';
 import { useSettingsStore } from '../store/settingsStore';
 import { Sentence } from '../types/book';
 
+// Google TTS のレート制限と生成速度のバランス
+const CONCURRENCY = 3;
+
 export function useTTSCache(bookId: string) {
   const { voiceName, speakingRate, pitch } = useSettingsStore();
   const abortRef = useRef(false);
 
   const getOrGenerate = useCallback(
     async (sentence: Sentence): Promise<string> => {
-      const path = audioCachePath(bookId, sentence.id);
-      return generateAndCache(sentence.text, { voiceName, speakingRate, pitch }, path);
+      const options = { voiceName, speakingRate, pitch };
+      const path = audioCachePath(bookId, sentence.id, options);
+      return generateAndCache(sentence.text, options, path);
     },
     [bookId, voiceName, speakingRate, pitch]
   );
@@ -22,10 +26,18 @@ export function useTTSCache(bookId: string) {
     ) => {
       abortRef.current = false;
       const total = sentences.length;
-      for (let i = 0; i < total; i++) {
+      let done = 0;
+
+      for (let i = 0; i < total; i += CONCURRENCY) {
         if (abortRef.current) break;
-        await getOrGenerate(sentences[i]);
-        onProgress(i + 1, total);
+        const batch = sentences.slice(i, i + CONCURRENCY);
+        await Promise.all(
+          batch.map(async (s) => {
+            await getOrGenerate(s);
+            done++;
+            onProgress(done, total);
+          })
+        );
       }
     },
     [getOrGenerate]
