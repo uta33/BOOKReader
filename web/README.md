@@ -30,6 +30,44 @@ npm run dev            # Vite(5173) と API(8787) を並走。/api は Vite が 
 
 キー未設定でも動作します（AI生成はサンプル台本、音声はブラウザ内蔵音声にフォールバック）。
 
+## スマホで使う（HTTPS公開 → ホーム画面に追加）
+
+スマホでアプリのように使うには、HTTPSで公開してからスマホのブラウザで開き、ホーム画面に追加します。
+HTTPS公開なら全画面・オフライン（PWA）で動作し、APIキーもサーバ側に安全に置けます。
+
+### Vercel に公開する（おすすめ）
+`web/api/` はVercelのサーバレス関数形式で実装済みなので、そのまま公開できます。
+
+**ダッシュボードから:**
+1. [vercel.com](https://vercel.com) で GitHub リポジトリ `uta33/BOOKReader` をインポート
+2. プロジェクト設定で **Root Directory = `web`** を指定（Framework は自動で Vite）
+3. **Environment Variables** に登録（サーバ側のみ・ブラウザには出ません）:
+   - `ANTHROPIC_API_KEY` … Claude（AI要約生成）。未設定でもサンプル台本で動作
+   - `GOOGLE_TTS_API_KEY` … 高品質音声（任意）。未設定はブラウザ内蔵音声
+4. **Deploy** → 払い出された `https://<your-app>.vercel.app` を使う
+
+**CLI から:**
+```bash
+cd web
+npx vercel            # 初回: Root を web に、設定に従う（プレビュー公開）
+npx vercel --prod     # 本番公開
+# 環境変数は: npx vercel env add ANTHROPIC_API_KEY
+```
+
+### スマホでホーム画面に追加
+- **iPhone (Safari)**: 公開URLを開く → 共有ボタン → 「ホーム画面に追加」
+- **Android (Chrome)**: 公開URLを開く → メニュー(⋮) → 「アプリをインストール」/「ホーム画面に追加」
+
+追加後はアイコンから全画面起動でき、一度開いた内容は機内/オフラインでも閲覧・復習できます。
+
+### 代替: 同一Wi-FiのPCから（動作確認用）
+PCで `npx vite --host` を起動し、スマホのブラウザで `http://<PCのIP>:5173` を開く。
+ただし `http://` のLANはセキュアコンテキストでないため、**PWAのインストール／オフラインは不可**
+（ブラウザ内での通常利用のみ）。フル機能はHTTPS公開（上記）が必要です。
+
+> Cloudflare Pages を使う場合、Functions のシグネチャ（`onRequestPost`）が Vercel と異なるため
+> `functions/` 用のアダプタが別途必要です（本リポジトリでは未対応）。
+
 ## スクリプト
 - `npm run dev` — フロント＋APIを並走
 - `npm run build` — 型チェック＋本番ビルド（PWA生成）
