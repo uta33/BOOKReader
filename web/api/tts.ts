@@ -2,6 +2,12 @@
 // Local development uses server/index.ts instead; both share server/lib.
 import { synthesize } from '../server/lib/tts.ts';
 
+// Without this, Vercel falls back to its platform default (10s on Hobby),
+// which a slow cold start + Google TTS round trip can exceed — the platform
+// then kills the function and returns a bare 500 that bypasses our own
+// try/catch below entirely (see src/services/api.ts's readError fallback).
+export const config = { maxDuration: 30 };
+
 interface Req {
   method?: string;
   body?: { text?: string; voiceName?: string; speakingRate?: number; pitch?: number };

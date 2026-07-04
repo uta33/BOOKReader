@@ -1,8 +1,27 @@
 import type { QuizItem } from '../types/book';
 
+/**
+ * Extract a diagnosable error message from a failed response. Reads the body
+ * as text first (a Response body can only be consumed once, so we can't try
+ * `.json()` and fall back to `.text()` on the same response) and attempts to
+ * parse it as our `{error}` shape. Platform-level failures (e.g. a Vercel
+ * function timeout) return a non-JSON body — in that case we surface a
+ * snippet of the raw text instead of silently discarding it, so the error is
+ * actually diagnosable instead of just showing a bare status code.
+ */
 async function readError(res: Response, fallback: string): Promise<string> {
-  const err = await res.json().catch(() => ({}));
-  return (err as { error?: string }).error ?? fallback;
+  const text = await res.text().catch(() => '');
+  if (text) {
+    try {
+      const parsed = JSON.parse(text) as { error?: string };
+      if (parsed.error) return parsed.error;
+    } catch {
+      // not JSON — fall through to the raw-text snippet below
+    }
+    const snippet = text.trim().slice(0, 200);
+    if (snippet) return `${fallback}: ${snippet}`;
+  }
+  return fallback;
 }
 
 /**
