@@ -1,6 +1,10 @@
 // Vercel/Cloudflare-compatible serverless wrapper.
 // Local development uses server/index.ts instead; both share server/lib.
-import { synthesize } from '../server/lib/tts.ts';
+// NOTE: '.js' extension is intentional even though the source is tts.ts —
+// Vercel transpiles api/*.ts per-file (not bundled) and preserves the import
+// specifier verbatim, so it must point at the post-compile output filename
+// or Node's ESM loader throws ERR_MODULE_NOT_FOUND at runtime.
+import { synthesize } from '../server/lib/tts.js';
 
 // Without this, Vercel falls back to its platform default (10s on Hobby),
 // which a slow cold start + Google TTS round trip can exceed — the platform
