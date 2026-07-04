@@ -38,6 +38,8 @@ interface PlayerApi {
   jumpTo: (idx: number) => void;
   /** Generate & persist every clip so the book plays offline anytime. */
   saveAll: () => Promise<void>;
+  /** Generate & persist the current sentence's clip only — does not play it. */
+  generateCurrent: () => Promise<void>;
 }
 
 /**
@@ -281,6 +283,16 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
     }
   }, [book.id, total, ensureClip]);
 
+  // Explicit "generate this sentence only" — prepares/persists the current
+  // clip without starting playback. Useful for pre-warming silently (e.g.
+  // before a meeting) or confirming Google TTS is actually configured.
+  const generateCurrent = useCallback(async () => {
+    const clip = await ensureClip(idxRef.current);
+    if (clip === null) {
+      throw new Error('高品質音声（Google TTS）が未設定のため生成できません。');
+    }
+  }, [ensureClip]);
+
   // Cleanup on unmount.
   useEffect(
     () => () => {
@@ -305,5 +317,6 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
     skipBack,
     jumpTo,
     saveAll,
+    generateCurrent,
   };
 }
