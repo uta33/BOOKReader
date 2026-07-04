@@ -148,6 +148,7 @@ export function Reader() {
         onToggle={player.toggle}
         onSkipForward={player.skipForward}
         onSkipBack={player.skipBack}
+        onGenerateCurrent={player.generateCurrent}
       />
     </div>
   );

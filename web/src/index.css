@@ -428,7 +428,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 10px;
 }
 .player__btn {
   background: var(--surface-alt);
@@ -436,18 +436,37 @@ button {
   color: var(--white);
   border-radius: 12px;
   font-size: 18px;
-  width: 52px;
+  width: 48px;
   height: 48px;
+  flex-shrink: 0;
 }
 .player__btn--main {
   background: var(--accent);
   border-color: var(--accent);
-  width: 72px;
+  width: 64px;
   font-size: 22px;
 }
 .player__btn--speed {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
+}
+.player__btn--gen {
+  width: auto;
+  min-width: 56px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  border-color: var(--accent-dim);
+}
+.player__btn--gen:disabled {
+  opacity: 0.6;
+}
+.player__gen-error {
+  margin-top: 6px;
+  text-align: center;
+  color: #f3a9a3;
+  font-size: 11px;
 }
 
 /* Chapter chips */
