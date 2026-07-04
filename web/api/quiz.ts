@@ -1,6 +1,7 @@
 // Vercel serverless wrapper.
 // Local development uses server/index.ts instead; both share server/lib.
-import { generateQuiz } from '../server/lib/quiz.ts';
+// NOTE: '.js' extension is intentional — see api/tts.ts for why.
+import { generateQuiz } from '../server/lib/quiz.js';
 
 export const config = { maxDuration: 60 };
 

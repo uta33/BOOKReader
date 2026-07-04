@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { SUMMARY_MODEL } from './summary.ts';
+// NOTE: '.js' extension is intentional — see api/tts.ts for why.
+import { SUMMARY_MODEL } from './summary.js';
 
 export interface QuizItem {
   q: string;

@@ -1,6 +1,7 @@
 // Vercel serverless wrapper (streaming).
 // Local development uses server/index.ts instead; both share server/lib.
-import { generateSummaryStream } from '../server/lib/summary.ts';
+// NOTE: '.js' extension is intentional — see api/tts.ts for why.
+import { generateSummaryStream } from '../server/lib/summary.js';
 
 export const config = {
   supportsResponseStreaming: true,
