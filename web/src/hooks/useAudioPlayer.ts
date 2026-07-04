@@ -16,6 +16,32 @@ export type AudioMode = 'tts' | 'speech' | 'timed';
 /** How many sentences ahead of the cursor to auto-synthesize during playback. */
 const PREFETCH_AHEAD = 5;
 
+/** Delay before the single automatic retry on a transient synthesis failure. */
+const RETRY_DELAY_MS = 800;
+
+/**
+ * Synthesize one clip, retrying once after a transient failure (network
+ * blip, cold-start timeout, momentary 5xx). Returns null when the server
+ * reports Google TTS isn't configured at all (`resp.fallback`) — that's a
+ * permanent condition for this deployment, so it is not retried. Throws if
+ * both attempts fail with a real error, letting the caller surface it.
+ */
+async function synthesizeWithRetry(
+  text: string,
+  voiceName: string,
+  pitch: number,
+): Promise<string | null> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const resp = await synthesize(text, voiceName, 1.0, pitch);
+      return resp.fallback ? null : resp.audioContent;
+    } catch (e) {
+      if (attempt > 0) throw e;
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+    }
+  }
+}
+
 export interface SaveProgress {
   done: number;
   total: number;
@@ -69,6 +95,9 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ttsAvailableRef = useRef(true);
   const savingRef = useRef(false);
+  // In-flight synthesis requests keyed by clip key, so windowed prefetch and
+  // an explicit "generate" click racing on the same sentence share one call.
+  const pendingRef = useRef(new Map<string, Promise<string | null>>());
 
   const settings = useRef({ voiceName, speakingRate, pitch });
   settings.current = { voiceName, speakingRate, pitch };
@@ -122,19 +151,27 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
       const cached = await getClip(key);
       if (cached) return cached;
       if (!ttsAvailableRef.current) return null;
-      const resp = await synthesize(
-        sentences[idx].text,
-        settings.current.voiceName,
-        1.0,
-        settings.current.pitch,
-      );
-      if (resp.fallback) {
+
+      let task = pendingRef.current.get(key);
+      if (!task) {
+        task = synthesizeWithRetry(
+          sentences[idx].text,
+          settings.current.voiceName,
+          settings.current.pitch,
+        ).finally(() => {
+          pendingRef.current.delete(key);
+        });
+        pendingRef.current.set(key, task);
+      }
+
+      const audioContent = await task;
+      if (audioContent === null) {
         ttsAvailableRef.current = false;
         return null;
       }
-      await putClip(key, resp.audioContent);
+      await putClip(key, audioContent);
       setSavedCount((n) => n + 1);
-      return resp.audioContent;
+      return audioContent;
     },
     [book.id, sentences],
   );
