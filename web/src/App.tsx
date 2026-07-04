@@ -1,4 +1,5 @@
 import { Routes, Route, useLocation } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import { BottomNav } from './components/BottomNav';
 import { Library } from './pages/Library';
 import { AddContent } from './pages/AddContent';
@@ -26,6 +27,7 @@ export default function App() {
         </Routes>
       </main>
       {!hideNav && <BottomNav />}
+      <Analytics />
     </div>
   );
 }
