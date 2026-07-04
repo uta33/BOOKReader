@@ -1,11 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { RecallGrade, ReviewItem } from '../types/book';
+import type { QuizItem, RecallGrade, ReviewItem } from '../types/book';
 import { applyGrade, createReviewItem, isDue } from '../services/spacedRepetition';
 
 interface ReviewState {
   items: ReviewItem[];
-  addFromRecap: (bookId: string, title: string, recap: string) => void;
+  /**
+   * Register review items when the user saves a recap: one 'recap' item from
+   * their own words plus one 'quiz' item per content-specific question.
+   * Replaces any previous items for the book (recap was rewritten).
+   */
+  addFromRecap: (bookId: string, title: string, recap: string, quiz?: QuizItem[]) => void;
   grade: (id: string, grade: RecallGrade) => void;
   removeForBook: (bookId: string) => void;
   dueItems: (now?: number) => ReviewItem[];
@@ -16,11 +21,24 @@ export const useReviewStore = create<ReviewState>()(
   persist(
     (set, get) => ({
       items: [],
-      addFromRecap: (bookId, title, recap) => {
-        const prompt = `「${title}」で学んだ最も重要なことは何でしたか？自分の言葉で思い出してみましょう。`;
-        const item = createReviewItem(bookId, prompt, recap);
-        // Replace any existing item for this book (recap was rewritten).
-        set((s) => ({ items: [item, ...s.items.filter((i) => i.bookId !== bookId)] }));
+      addFromRecap: (bookId, title, recap, quiz = []) => {
+        const now = Date.now();
+        const recapItem: ReviewItem = {
+          ...createReviewItem(
+            bookId,
+            `「${title}」で学んだ最も重要なことは何でしたか？自分の言葉で思い出してみましょう。`,
+            recap,
+            now,
+          ),
+          kind: 'recap',
+        };
+        const quizItems: ReviewItem[] = quiz.map((qa, i) => ({
+          ...createReviewItem(bookId, qa.q, qa.a, now + i + 1),
+          kind: 'quiz',
+        }));
+        set((s) => ({
+          items: [recapItem, ...quizItems, ...s.items.filter((it) => it.bookId !== bookId)],
+        }));
       },
       grade: (id, g) =>
         set((s) => ({

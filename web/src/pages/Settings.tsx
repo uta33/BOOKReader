@@ -1,23 +1,41 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { VOICES, PREVIEW_TEXT } from '../constants/voices';
 import { SPEED_STEPS } from '../constants/speeds';
-import { useSettingsStore } from '../store/settingsStore';
+import { useSettingsStore, type FontScale } from '../store/settingsStore';
 import { synthesize } from '../services/api';
+import { getStorageInfo, type StorageInfo } from '../services/audioCache';
+
+const FONT_LABEL: Record<FontScale, string> = { s: '小', m: '中', l: '大' };
 
 export function Settings() {
-  const { voiceName, speedStepIdx, speakingRate, pitch, setVoice, setSpeedIdx, setPitch } =
-    useSettingsStore();
+  const {
+    voiceName,
+    speedStepIdx,
+    speakingRate,
+    pitch,
+    fontScale,
+    setVoice,
+    setSpeedIdx,
+    setPitch,
+    setFontScale,
+  } = useSettingsStore();
   const [genderFilter, setGenderFilter] = useState<'all' | 'female' | 'male'>('all');
   const [previewing, setPreviewing] = useState(false);
+  const [storage, setStorage] = useState<StorageInfo | null>(null);
+
+  useEffect(() => {
+    void getStorageInfo().then(setStorage);
+  }, []);
 
   const voices = VOICES.filter((v) => genderFilter === 'all' || v.gender === genderFilter);
 
   const preview = async () => {
     setPreviewing(true);
     try {
-      const resp = await synthesize(PREVIEW_TEXT, voiceName, speakingRate, pitch);
+      const resp = await synthesize(PREVIEW_TEXT, voiceName, 1.0, pitch);
       if (!resp.fallback) {
         const audio = new Audio(`data:audio/mp3;base64,${resp.audioContent}`);
+        audio.playbackRate = speakingRate;
         await audio.play();
       } else if (window.speechSynthesis) {
         const u = new SpeechSynthesisUtterance(PREVIEW_TEXT);
@@ -41,6 +59,21 @@ export function Settings() {
       </header>
 
       <div className="form">
+        <div className="field">
+          <span className="field__label">リーダーの文字サイズ</span>
+          <div className="segmented">
+            {(['s', 'm', 'l'] as const).map((f) => (
+              <button
+                key={f}
+                className={`segmented__btn${fontScale === f ? ' is-active' : ''}`}
+                onClick={() => setFontScale(f)}
+              >
+                {FONT_LABEL[f]}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="field">
           <span className="field__label">声フィルター</span>
           <div className="segmented">
@@ -69,6 +102,10 @@ export function Settings() {
               </button>
             ))}
           </div>
+          <p className="hint">
+            音声は声ごとに保存されます。声を切り替えると新しい声での再生成が必要になります
+            （速度の変更は保存済み音声にそのまま反映されます）。
+          </p>
         </div>
 
         <label className="field">
@@ -98,6 +135,16 @@ export function Settings() {
         <button className="btn btn--primary" onClick={preview} disabled={previewing}>
           {previewing ? '再生中…' : '試聴する'}
         </button>
+
+        {storage && (
+          <div className="field">
+            <span className="field__label">保存済み音声のストレージ</span>
+            <p className="hint">
+              使用量 {storage.usageMB.toFixed(1)} MB / 上限 約{Math.round(storage.quotaMB)} MB ・
+              永続化: {storage.persisted ? '有効（自動削除されません）' : '未設定（音声保存時に要求します）'}
+            </p>
+          </div>
+        )}
 
         <p className="hint">
           高品質音声（Google TTS）はサーバ側でAPIキーを設定すると有効になります。未設定時はブラウザ内蔵の音声で読み上げます。

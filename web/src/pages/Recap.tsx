@@ -29,7 +29,7 @@ export function Recap() {
   const onSave = () => {
     if (!summary.trim()) return;
     updateBook(book.id, { recap: summary.trim(), recapCreatedAt: Date.now() });
-    addFromRecap(book.id, book.title, summary.trim());
+    addFromRecap(book.id, book.title, summary.trim(), book.quiz);
     setSaved(true);
   };
 
@@ -69,7 +69,10 @@ export function Recap() {
 
         {saved && (
           <div className="alert alert--success">
-            ✅ 保存しました。明日この内容を「復習」で思い出します。
+            ✅ 保存しました。明日から「復習」に出題されます
+            {book.quiz && book.quiz.length > 0
+              ? `（あなたのふりかえり＋クイズ${book.quiz.length}問）。`
+              : '。'}
             <div className="alert__actions">
               <button className="btn btn--ghost" onClick={() => navigate('/review')}>
                 復習へ

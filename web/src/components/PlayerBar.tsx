@@ -5,9 +5,9 @@ import type { AudioMode } from '../hooks/useAudioPlayer';
 interface Props {
   isPlaying: boolean;
   mode: AudioMode;
-  prefetched: number;
   total: number;
   currentIdx: number;
+  savedCount: number;
   onToggle: () => void;
   onSkipForward: () => void;
   onSkipBack: () => void;
@@ -22,9 +22,9 @@ const MODE_LABEL: Record<AudioMode, string> = {
 export function PlayerBar({
   isPlaying,
   mode,
-  prefetched,
   total,
   currentIdx,
+  savedCount,
   onToggle,
   onSkipForward,
   onSkipBack,
@@ -40,7 +40,7 @@ export function PlayerBar({
         </span>
         <span className="player__mode" title="音声ソース">
           {MODE_LABEL[mode]}
-          {mode === 'tts' && prefetched < total ? `（生成中 ${prefetched}/${total}）` : ''}
+          {savedCount > 0 ? `・保存 ${Math.min(savedCount, total)}/${total}` : ''}
         </span>
       </div>
       <div className="player__controls">

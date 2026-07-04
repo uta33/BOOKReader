@@ -1,5 +1,6 @@
 import express from 'express';
-import { generateSummary } from './lib/summary.ts';
+import { generateSummaryStream } from './lib/summary.ts';
+import { generateQuiz } from './lib/quiz.ts';
 import { synthesize } from './lib/tts.ts';
 
 const app = express();
@@ -14,9 +15,28 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.post('/api/generate-summary', async (req, res) => {
+  const { topic, guidance } = req.body ?? {};
   try {
-    const { topic, guidance } = req.body ?? {};
-    const result = await generateSummary({ topic, guidance });
+    const stream = generateSummaryStream({ topic, guidance });
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    for await (const chunk of stream) {
+      res.write(chunk);
+    }
+    res.end();
+  } catch (e) {
+    if (!res.headersSent) {
+      res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+    } else {
+      res.end();
+    }
+  }
+});
+
+app.post('/api/quiz', async (req, res) => {
+  try {
+    const { script } = req.body ?? {};
+    const result = await generateQuiz(script);
     res.json(result);
   } catch (e) {
     res.status(400).json({ error: e instanceof Error ? e.message : String(e) });

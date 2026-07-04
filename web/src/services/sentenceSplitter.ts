@@ -41,13 +41,15 @@ export function buildSentences(script: string): Sentence[] {
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    if (SECTION_RE.test(trimmed) && sentences.length > 0) section += 1;
+    const isHeadingLine = SECTION_RE.test(trimmed) && trimmed.length <= 40;
+    if (isHeadingLine && sentences.length > 0) section += 1;
 
     for (const part of splitIntoSentences(trimmed)) {
       sentences.push({
         id: `s${sentences.length}`,
         text: part,
         section,
+        ...(isHeadingLine ? { isHeading: true } : {}),
       });
     }
   }

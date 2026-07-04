@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLibraryStore } from '../store/libraryStore';
 import { useReviewStore } from '../store/reviewStore';
+import { countClipsForBook } from '../services/audioCache';
 
 export function Library() {
   const books = useLibraryStore((s) => s.books);
@@ -8,6 +10,19 @@ export function Library() {
   const removeReviews = useReviewStore((s) => s.removeForBook);
   const dueCount = useReviewStore((s) => s.dueCount());
   const navigate = useNavigate();
+  const [savedCounts, setSavedCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all(
+      books.map(async (b) => [b.id, await countClipsForBook(b.id).catch(() => 0)] as const),
+    ).then((entries) => {
+      if (!cancelled) setSavedCounts(Object.fromEntries(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [books]);
 
   const confirmDelete = (id: string, title: string) => {
     if (confirm(`「${title}」を削除しますか？音声キャッシュも削除されます。`)) {
@@ -44,6 +59,7 @@ export function Library() {
             const pct = b.sentences.length
               ? Math.round(((b.lastSentenceIdx + 1) / b.sentences.length) * 100)
               : 0;
+            const saved = Math.min(savedCounts[b.id] ?? 0, b.sentences.length);
             return (
               <li key={b.id} className="card">
                 <button
@@ -53,8 +69,12 @@ export function Library() {
                   <div className="card__title">{b.title}</div>
                   <div className="card__meta">
                     <span>{b.source === 'ai' ? '🤖 AI生成' : '📝 取り込み'}</span>
-                    <span>{b.sentences.length} 文</span>
                     <span>{pct}% 読了</span>
+                    {saved > 0 && (
+                      <span>
+                        🔊 {saved >= b.sentences.length ? '音声保存済み' : `音声 ${saved}/${b.sentences.length}`}
+                      </span>
+                    )}
                     {b.recap && <span>✅ ふりかえり済</span>}
                   </div>
                   <div className="progress">

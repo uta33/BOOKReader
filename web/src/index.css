@@ -374,12 +374,28 @@ button {
   margin: 0;
   padding: 4px 0;
 }
+.reader--s { --reader-fs: 15px; --reader-hfs: 17px; }
+.reader--m { --reader-fs: 18px; --reader-hfs: 20px; }
+.reader--l { --reader-fs: 21px; --reader-hfs: 24px; }
+.reader__heading {
+  padding: 8px 10px;
+  margin: 18px 0 4px;
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: var(--reader-hfs, 20px);
+  font-weight: 800;
+  border-bottom: 1px solid var(--border);
+}
+.reader__heading.is-active {
+  background: var(--highlight);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
 .reader__sentence {
   padding: 6px 10px;
   margin: 2px 0;
   border-radius: 8px;
   color: var(--muted);
-  font-size: 18px;
+  font-size: var(--reader-fs, 18px);
   transition: background 0.15s, color 0.15s;
 }
 .reader__sentence.is-read {
@@ -434,6 +450,92 @@ button {
   font-weight: 700;
 }
 
+/* Chapter chips */
+.chapters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0 10px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.chapters::-webkit-scrollbar {
+  display: none;
+}
+.chapter-chip {
+  flex-shrink: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chapter-chip.is-active {
+  background: var(--highlight);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Live generation panel */
+.livegen {
+  background: var(--surface);
+  border: 1px solid var(--accent-dim);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.livegen__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
+}
+.livegen__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.livegen__body {
+  padding: 12px 14px;
+  max-height: 40vh;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-size: 14px;
+  color: #cfcfcf;
+  line-height: 1.8;
+}
+
+/* Pills */
+.pill {
+  display: inline-block;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.pill--quiz {
+  background: var(--highlight);
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+
 /* Review */
 .review {
   display: flex;
@@ -452,6 +554,18 @@ button {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+.review__source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.review__book {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .review__prompt {
   font-size: 17px;

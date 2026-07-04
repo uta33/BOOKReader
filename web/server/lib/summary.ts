@@ -7,14 +7,10 @@ export interface GenerateInput {
   guidance?: string;
 }
 
-export interface GenerateResult {
-  title: string;
-  script: string;
-  /** true when no API key was configured and a mock script was returned. */
-  mock: boolean;
-}
+/** Summary-generation model. User-selected default: Sonnet. */
+export const SUMMARY_MODEL = process.env.SUMMARY_MODEL ?? 'claude-sonnet-4-6';
 
-const MODEL = 'claude-opus-4-8';
+export const QUIZ_MARKER = '復習クイズ:';
 
 function buildPrompt({ topic, guidance }: GenerateInput): string {
   return [
@@ -27,31 +23,26 @@ function buildPrompt({ topic, guidance }: GenerateInput): string {
     '- 構成: 冒頭に1文の要約、続いて3〜5個の重要ポイントを章立てで。',
     '- 各章は「第N章 タイトル」の見出し1行のあと、本文を続ける。',
     '- 各章に、具体的なビジネス現場での適用例を1つ含める。',
-    '- 末尾に「まとめ」として、明日から実行できる行動を2〜3個。',
+    '- 本文の末尾に「まとめ」として、明日から実行できる行動を2〜3個。',
     '- 音声読み上げ前提のプレーンな日本語。箇条書き記号(・,-,*)やMarkdown記法は使わない。',
     '- 文は句点（。）で区切れる自然な文章にする。',
     '',
     '出力フォーマット:',
     '1行目に「タイトル: <書名/トピックを表す簡潔な題>」。',
-    '2行目以降に本文のみ。',
+    '2行目以降に本文。',
+    `本文が終わったら、最後に「${QUIZ_MARKER}」という行を置き、続けて内容の核心を問う復習クイズを3問、`,
+    '次の形式で出力する（クイズは本文には含めない）:',
+    'Q: <質問>',
+    'A: <模範解答（2〜3文）>',
   ]
     .filter(Boolean)
     .join('\n');
 }
 
-function parseTitle(text: string, fallback: string): { title: string; script: string } {
-  const lines = text.split('\n');
-  const first = lines[0]?.trim() ?? '';
-  const m = first.match(/^タイトル[:：]\s*(.+)$/);
-  if (m) {
-    return { title: m[1].trim(), script: lines.slice(1).join('\n').trim() };
-  }
-  return { title: fallback, script: text.trim() };
-}
-
-function mockScript({ topic }: GenerateInput): GenerateResult {
+function mockText({ topic }: GenerateInput): string {
   const title = topic.slice(0, 40);
-  const script = [
+  return [
+    `タイトル: ${title}`,
     `${topic}は、限られた時間で成果を最大化するための考え方を扱います。`,
     '',
     '第1章 重要なことに集中する',
@@ -65,36 +56,52 @@ function mockScript({ topic }: GenerateInput): GenerateResult {
     '',
     'まとめ',
     `第一に、今週の重要だが緊急でないタスクを一つ決めて時間を確保しましょう。第二に、繰り返す判断を一つ選んでルール化しましょう。第三に、温めているアイデアを最小限の形で試してみましょう。`,
+    '',
+    QUIZ_MARKER,
+    'Q: 時間を投資すべきなのはどの領域ですか？',
+    'A: 重要だが緊急でない領域です。緊急なタスクに追われる前に、成果に直結する仕事へ意図的に時間を確保します。',
+    'Q: 意思決定の質を保つために何をすべきですか？',
+    'A: 繰り返す判断をルール化して意思決定の回数を減らします。エネルギーを本当に重要な決定に温存できます。',
+    'Q: 新しい取り組みを始めるときの原則は何ですか？',
+    'A: 小さく試して素早く学ぶことです。最小限の形で検証し、結果を見てから拡大することで失敗の損失を抑えます。',
   ].join('\n');
-  return { title, script, mock: true };
 }
 
 /**
- * Generate a business-book summary script with Claude.
- * Falls back to a deterministic mock when ANTHROPIC_API_KEY is not configured,
- * so the UI is fully usable without credentials.
+ * Stream a business-book summary script (plain text) chunk by chunk.
+ * Output format: "タイトル: …" line, body, then a QUIZ_MARKER section with
+ * 3 Q:/A: pairs. Falls back to a deterministic mock when ANTHROPIC_API_KEY is
+ * not configured so the UI works without credentials.
  */
-export async function generateSummary(input: GenerateInput): Promise<GenerateResult> {
+export async function* generateSummaryStream(input: GenerateInput): AsyncGenerator<string> {
   const topic = input.topic?.trim();
   if (!topic) throw new Error('topic is required');
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return mockScript(input);
+  if (!apiKey) {
+    // Emit the mock in small chunks so the client's live view behaves the same.
+    const text = mockText({ ...input, topic });
+    const CHUNK = 80;
+    for (let i = 0; i < text.length; i += CHUNK) {
+      yield text.slice(i, i + CHUNK);
+      await new Promise((r) => setTimeout(r, 15));
+    }
+    return;
+  }
 
   const client = new Anthropic({ apiKey });
-  // Stream to avoid HTTP timeouts on long generations; collect the final message.
   const stream = client.messages.stream({
-    model: MODEL,
+    model: SUMMARY_MODEL,
     max_tokens: 8000,
     messages: [{ role: 'user', content: buildPrompt({ ...input, topic }) }],
   });
-  const message = await stream.finalMessage();
-  const text = message.content
-    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-    .map((b) => b.text)
-    .join('')
-    .trim();
+  for await (const event of stream) {
+    if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+      yield event.delta.text;
+    }
+  }
+}
 
-  const { title, script } = parseTitle(text, topic.slice(0, 40));
-  return { title, script, mock: false };
+export function isMockMode(): boolean {
+  return !process.env.ANTHROPIC_API_KEY;
 }

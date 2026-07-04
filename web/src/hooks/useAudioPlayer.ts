@@ -1,31 +1,52 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Book } from '../types/book';
 import { synthesize } from '../services/api';
-import { clipKey, getClip, putClip } from '../services/audioCache';
+import {
+  clipKey,
+  countClipsForBook,
+  ensurePersistentStorage,
+  getClip,
+  putClip,
+} from '../services/audioCache';
 import { useSettingsStore } from '../store/settingsStore';
 import { useLibraryStore } from '../store/libraryStore';
 
 export type AudioMode = 'tts' | 'speech' | 'timed';
 
+/** How many sentences ahead of the cursor to auto-synthesize during playback. */
+const PREFETCH_AHEAD = 5;
+
+export interface SaveProgress {
+  done: number;
+  total: number;
+}
+
 interface PlayerApi {
   currentIdx: number;
   isPlaying: boolean;
   mode: AudioMode;
-  /** number of clips pre-generated so far (Google TTS mode only). */
-  prefetched: number;
   total: number;
+  /** clips already persisted for this book (any voice). */
+  savedCount: number;
+  /** non-null while "save all audio" is running. */
+  saveProgress: SaveProgress | null;
   play: () => void;
   pause: () => void;
   toggle: () => void;
   skipForward: () => void;
   skipBack: () => void;
   jumpTo: (idx: number) => void;
+  /** Generate & persist every clip so the book plays offline anytime. */
+  saveAll: () => Promise<void>;
 }
 
 /**
- * Drives sentence-by-sentence playback with highlight sync.
- * Audio source preference: Google Cloud TTS (cached mp3) → browser
- * SpeechSynthesis → a timed auto-advance fallback so reading always progresses.
+ * Sentence-by-sentence playback with highlight sync.
+ *
+ * Audio clips are synthesized at 1.0x and persisted in IndexedDB keyed by
+ * book+sentence+voice; playback speed is applied via `playbackRate`, so a
+ * saved book never needs re-synthesis when the speed changes. Source
+ * preference: saved/Google TTS clip → browser SpeechSynthesis → timed advance.
  */
 export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi {
   const sentences = book.sentences;
@@ -36,7 +57,8 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
   const [currentIdx, setCurrentIdx] = useState(book.lastSentenceIdx ?? 0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [mode, setMode] = useState<AudioMode>('tts');
-  const [prefetched, setPrefetched] = useState(0);
+  const [savedCount, setSavedCount] = useState(0);
+  const [saveProgress, setSaveProgress] = useState<SaveProgress | null>(null);
 
   const idxRef = useRef(currentIdx);
   const playingRef = useRef(false);
@@ -44,9 +66,27 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ttsAvailableRef = useRef(true);
+  const savingRef = useRef(false);
 
   const settings = useRef({ voiceName, speakingRate, pitch });
   settings.current = { voiceName, speakingRate, pitch };
+
+  // Load how many clips are already saved for this book.
+  useEffect(() => {
+    if (!book.id) return;
+    let cancelled = false;
+    void countClipsForBook(book.id).then((n) => {
+      if (!cancelled) setSavedCount(n);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [book.id]);
+
+  // Changing the speed mid-sentence applies immediately to the playing clip.
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.playbackRate = speakingRate;
+  }, [speakingRate]);
 
   const setIdx = useCallback(
     (i: number) => {
@@ -72,21 +112,30 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
     }
   }, []);
 
-  // Fetch (or generate) one clip; returns base64 mp3, or null when TTS falls back.
-  const ensureClip = useCallback(async (idx: number): Promise<string | null> => {
-    if (!ttsAvailableRef.current) return null;
-    const { voiceName: v, speakingRate: r, pitch: p } = settings.current;
-    const key = clipKey(book.id, sentences[idx].id, v, r, p);
-    const cached = await getClip(key);
-    if (cached) return cached;
-    const resp = await synthesize(sentences[idx].text, v, r, p);
-    if (resp.fallback) {
-      ttsAvailableRef.current = false;
-      return null;
-    }
-    await putClip(key, resp.audioContent);
-    return resp.audioContent;
-  }, [book.id, sentences]);
+  // Fetch (or synthesize + persist) one clip. Returns base64 mp3, or null
+  // when Google TTS is unavailable. Clips are always synthesized at 1.0x.
+  const ensureClip = useCallback(
+    async (idx: number): Promise<string | null> => {
+      const key = clipKey(book.id, sentences[idx].id, settings.current.voiceName);
+      const cached = await getClip(key);
+      if (cached) return cached;
+      if (!ttsAvailableRef.current) return null;
+      const resp = await synthesize(
+        sentences[idx].text,
+        settings.current.voiceName,
+        1.0,
+        settings.current.pitch,
+      );
+      if (resp.fallback) {
+        ttsAvailableRef.current = false;
+        return null;
+      }
+      await putClip(key, resp.audioContent);
+      setSavedCount((n) => n + 1);
+      return resp.audioContent;
+    },
+    [book.id, sentences],
+  );
 
   const advance = useCallback(() => {
     const next = idxRef.current + 1;
@@ -140,6 +189,7 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
       if (b64) {
         setMode('tts');
         const audio = new Audio(`data:audio/mp3;base64,${b64}`);
+        audio.playbackRate = settings.current.speakingRate;
         audioRef.current = audio;
         audio.onended = () => {
           if (token === tokenRef.current && playingRef.current) advance();
@@ -185,43 +235,75 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
   const skipForward = useCallback(() => jumpTo(idxRef.current + 1), [jumpTo]);
   const skipBack = useCallback(() => jumpTo(idxRef.current - 1), [jumpTo]);
 
-  // Background pre-generation of audio (Google TTS only). Stops on fallback.
+  // Windowed prefetch: keep the current sentence plus a few ahead synthesized.
+  // Full-book generation is the explicit saveAll() action, so casual listening
+  // only pays for what's actually near the cursor.
   useEffect(() => {
+    if (!book.id || total === 0) return;
     let cancelled = false;
     (async () => {
-      for (let i = 0; i < total; i++) {
+      const end = Math.min(total, currentIdx + 1 + PREFETCH_AHEAD);
+      for (let i = currentIdx; i < end; i++) {
         if (cancelled || !ttsAvailableRef.current) break;
         try {
           await ensureClip(i);
         } catch {
           break;
         }
-        if (!cancelled) setPrefetched((n) => Math.max(n, i + 1));
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [total, ensureClip]);
+  }, [book.id, currentIdx, total, ensureClip]);
+
+  // Explicit "save the whole book" — persists every clip for offline replay.
+  const saveAll = useCallback(async () => {
+    if (savingRef.current || total === 0) return;
+    if (!ttsAvailableRef.current) {
+      throw new Error('高品質音声（Google TTS）が未設定のため保存できません。');
+    }
+    savingRef.current = true;
+    setSaveProgress({ done: 0, total });
+    try {
+      await ensurePersistentStorage();
+      for (let i = 0; i < total; i++) {
+        const clip = await ensureClip(i);
+        if (clip === null) {
+          throw new Error('高品質音声（Google TTS）が未設定のため保存できません。');
+        }
+        setSaveProgress({ done: i + 1, total });
+      }
+      setSavedCount(await countClipsForBook(book.id));
+    } finally {
+      savingRef.current = false;
+      setSaveProgress(null);
+    }
+  }, [book.id, total, ensureClip]);
 
   // Cleanup on unmount.
-  useEffect(() => () => {
-    playingRef.current = false;
-    tokenRef.current++;
-    stopAudioPrimitives();
-  }, [stopAudioPrimitives]);
+  useEffect(
+    () => () => {
+      playingRef.current = false;
+      tokenRef.current++;
+      stopAudioPrimitives();
+    },
+    [stopAudioPrimitives],
+  );
 
   return {
     currentIdx,
     isPlaying,
     mode,
-    prefetched,
     total,
+    savedCount,
+    saveProgress,
     play,
     pause,
     toggle,
     skipForward,
     skipBack,
     jumpTo,
+    saveAll,
   };
 }
