@@ -9,6 +9,7 @@ import {
 } from '../constants/voices';
 import { SPEED_STEPS } from '../constants/speeds';
 import { useSettingsStore, type FontScale } from '../store/settingsStore';
+import { useBgmStore } from '../store/bgmStore';
 import { synthesize } from '../services/api';
 import { getStorageInfo, type StorageInfo } from '../services/audioCache';
 
@@ -26,6 +27,11 @@ export function Settings() {
     setPitch,
     setFontScale,
   } = useSettingsStore();
+  const bgmEnabled = useBgmStore((s) => s.enabled);
+  const bgmVolume = useBgmStore((s) => s.volume);
+  const setBgmEnabled = useBgmStore((s) => s.setEnabled);
+  const setBgmVolume = useBgmStore((s) => s.setVolume);
+
   const [genderFilter, setGenderFilter] = useState<'all' | 'female' | 'male'>('all');
   const [previewing, setPreviewing] = useState(false);
   const [storage, setStorage] = useState<StorageInfo | null>(null);
@@ -180,6 +186,42 @@ export function Settings() {
         <button className="btn btn--primary" onClick={preview} disabled={previewing}>
           {previewing ? '再生中…' : '試聴する'}
         </button>
+
+        <div className="field">
+          <span className="field__label">バックグラウンド音（BGM）</span>
+          <div className="segmented">
+            <button
+              className={`segmented__btn${bgmEnabled ? ' is-active' : ''}`}
+              onClick={() => setBgmEnabled(true)}
+            >
+              オン
+            </button>
+            <button
+              className={`segmented__btn${!bgmEnabled ? ' is-active' : ''}`}
+              onClick={() => setBgmEnabled(false)}
+            >
+              オフ
+            </button>
+          </div>
+          <p className="hint">
+            読み上げと同時に環境音をループ再生します。オンにしたあと画面を一度タップすると再生が始まります
+            （ブラウザの自動再生制限のため）。
+          </p>
+        </div>
+
+        {bgmEnabled && (
+          <label className="field">
+            <span className="field__label">BGMの音量: {Math.round(bgmVolume * 100)}%</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={Math.round(bgmVolume * 100)}
+              onChange={(e) => setBgmVolume(Number(e.target.value) / 100)}
+            />
+          </label>
+        )}
 
         {storage && (
           <div className="field">
