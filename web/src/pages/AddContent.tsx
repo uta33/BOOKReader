@@ -14,6 +14,7 @@ export function AddContent() {
   const [guidance, setGuidance] = useState('');
   const [scriptTitle, setScriptTitle] = useState('');
   const [scriptText, setScriptText] = useState('');
+  const [fileName, setFileName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [liveText, setLiveText] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -73,10 +74,29 @@ export function AddContent() {
     }
   };
 
+  const onFile = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    try {
+      const text = await file.text();
+      if (!text.trim()) {
+        setError('ファイルが空です。');
+        return;
+      }
+      setScriptText(text);
+      setFileName(file.name);
+      if (!scriptTitle.trim()) {
+        setScriptTitle(file.name.replace(/\.(md|markdown|txt)$/i, ''));
+      }
+    } catch {
+      setError('ファイルの読み込みに失敗しました。');
+    }
+  };
+
   const onImport = async () => {
     const text = scriptText.trim();
     if (!text) {
-      setError('要約台本のテキストを貼り付けてください。');
+      setError('mdファイルを選択してください。');
       return;
     }
     setError(null);
@@ -180,20 +200,37 @@ export function AddContent() {
               disabled={loading}
             />
           </label>
-          <label className="field">
-            <span className="field__label">要約台本のテキスト</span>
-            <textarea
-              className="input textarea"
-              value={scriptText}
-              onChange={(e) => setScriptText(e.target.value)}
-              placeholder="ここに要約のテキストを貼り付け…"
-              rows={12}
-              disabled={loading}
-            />
-          </label>
-          <button className="btn btn--primary" onClick={onImport} disabled={loading}>
+
+          <div className="field">
+            <span className="field__label">要約台本ファイル（.md / .txt）</span>
+            <label className={`filepick${loading ? ' is-disabled' : ''}`}>
+              <input
+                type="file"
+                accept=".md,.markdown,.txt,text/markdown,text/plain"
+                className="filepick__input"
+                disabled={loading}
+                onChange={(e) => onFile(e.target.files?.[0])}
+              />
+              <span className="filepick__icon">📄</span>
+              <span className="filepick__text">
+                {fileName ?? 'タップして .md ファイルを選択'}
+              </span>
+            </label>
+          </div>
+
+          {scriptText && (
+            <div className="filepreview" data-testid="file-preview">
+              <div className="filepreview__head">プレビュー（先頭）</div>
+              <div className="filepreview__body">{scriptText.slice(0, 400)}</div>
+            </div>
+          )}
+
+          <button className="btn btn--primary" onClick={onImport} disabled={loading || !scriptText}>
             {loading ? '取り込み中（復習クイズを生成しています）…' : '取り込む'}
           </button>
+          <p className="hint">
+            Markdownの見出し（#）や箇条書き・強調記号は読み上げ用に自動で整えます。
+          </p>
         </div>
       )}
     </div>
