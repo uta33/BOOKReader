@@ -10,6 +10,7 @@ import {
 } from '../services/audioCache';
 import { useSettingsStore } from '../store/settingsStore';
 import { useLibraryStore } from '../store/libraryStore';
+import { usePlaybackStore } from '../store/playbackStore';
 
 export type AudioMode = 'tts' | 'speech' | 'timed';
 
@@ -81,6 +82,7 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
   const total = sentences.length;
   const { voiceName, speakingRate, pitch } = useSettingsStore();
   const updateBook = useLibraryStore((s) => s.updateBook);
+  const setNarrating = usePlaybackStore((s) => s.setNarrating);
 
   const [currentIdx, setCurrentIdx] = useState(book.lastSentenceIdx ?? 0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -113,6 +115,13 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
       cancelled = true;
     };
   }, [book.id]);
+
+  // Expose live narration state globally so the BGM can follow it (play only
+  // while narrating). Reset to false when the reader unmounts.
+  useEffect(() => {
+    setNarrating(isPlaying);
+  }, [isPlaying, setNarrating]);
+  useEffect(() => () => setNarrating(false), [setNarrating]);
 
   // Changing the speed mid-sentence applies immediately to the playing clip.
   useEffect(() => {
