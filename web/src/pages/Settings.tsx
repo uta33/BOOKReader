@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react';
-import { VOICES, PREVIEW_TEXT } from '../constants/voices';
+import {
+  VOICES,
+  PREVIEW_TEXT,
+  QUALITY_LABEL,
+  pickVoice,
+  voiceQualityOf,
+  type VoiceQuality,
+} from '../constants/voices';
 import { SPEED_STEPS } from '../constants/speeds';
 import { useSettingsStore, type FontScale } from '../store/settingsStore';
+import { useBgmStore } from '../store/bgmStore';
 import { synthesize } from '../services/api';
 import { getStorageInfo, type StorageInfo } from '../services/audioCache';
 
@@ -19,6 +27,11 @@ export function Settings() {
     setPitch,
     setFontScale,
   } = useSettingsStore();
+  const bgmEnabled = useBgmStore((s) => s.enabled);
+  const bgmVolume = useBgmStore((s) => s.volume);
+  const setBgmEnabled = useBgmStore((s) => s.setEnabled);
+  const setBgmVolume = useBgmStore((s) => s.setVolume);
+
   const [genderFilter, setGenderFilter] = useState<'all' | 'female' | 'male'>('all');
   const [previewing, setPreviewing] = useState(false);
   const [storage, setStorage] = useState<StorageInfo | null>(null);
@@ -27,7 +40,26 @@ export function Settings() {
     void getStorageInfo().then(setStorage);
   }, []);
 
-  const voices = VOICES.filter((v) => genderFilter === 'all' || v.gender === genderFilter);
+  const quality = voiceQualityOf(voiceName);
+  const currentGender = VOICES.find((v) => v.name === voiceName)?.gender;
+
+  // Switching quality immediately selects a matching voice (keeping gender when
+  // possible), so choosing 高音質 actually takes effect right away.
+  const changeQuality = (q: VoiceQuality) => {
+    if (q === quality) return;
+    setVoice(pickVoice(q, currentGender));
+  };
+
+  // Changing the gender filter also re-picks a matching voice at the same
+  // quality, so the selection never drifts out of the visible list.
+  const changeGender = (g: 'all' | 'female' | 'male') => {
+    setGenderFilter(g);
+    if (g !== 'all' && currentGender !== g) setVoice(pickVoice(quality, g));
+  };
+
+  const voices = VOICES.filter(
+    (v) => v.quality === quality && (genderFilter === 'all' || v.gender === genderFilter),
+  );
 
   const preview = async () => {
     setPreviewing(true);
@@ -75,13 +107,32 @@ export function Settings() {
         </div>
 
         <div className="field">
+          <span className="field__label">音質</span>
+          <div className="segmented">
+            {(['neural2', 'standard'] as const).map((q) => (
+              <button
+                key={q}
+                className={`segmented__btn${quality === q ? ' is-active' : ''}`}
+                onClick={() => changeQuality(q)}
+              >
+                {QUALITY_LABEL[q]}
+              </button>
+            ))}
+          </div>
+          <p className="hint">
+            高音質（Neural2）はより自然な読み上げです。どちらもGoogle TTS（要APIキー）で、
+            未設定時はブラウザ内蔵音声になります。
+          </p>
+        </div>
+
+        <div className="field">
           <span className="field__label">声フィルター</span>
           <div className="segmented">
             {(['all', 'female', 'male'] as const).map((g) => (
               <button
                 key={g}
                 className={`segmented__btn${genderFilter === g ? ' is-active' : ''}`}
-                onClick={() => setGenderFilter(g)}
+                onClick={() => changeGender(g)}
               >
                 {g === 'all' ? 'すべて' : g === 'female' ? '女性' : '男性'}
               </button>
@@ -135,6 +186,42 @@ export function Settings() {
         <button className="btn btn--primary" onClick={preview} disabled={previewing}>
           {previewing ? '再生中…' : '試聴する'}
         </button>
+
+        <div className="field">
+          <span className="field__label">バックグラウンド音（BGM）</span>
+          <div className="segmented">
+            <button
+              className={`segmented__btn${bgmEnabled ? ' is-active' : ''}`}
+              onClick={() => setBgmEnabled(true)}
+            >
+              オン
+            </button>
+            <button
+              className={`segmented__btn${!bgmEnabled ? ' is-active' : ''}`}
+              onClick={() => setBgmEnabled(false)}
+            >
+              オフ
+            </button>
+          </div>
+          <p className="hint">
+            読み上げと同時に環境音をループ再生します。オンにしたあと画面を一度タップすると再生が始まります
+            （ブラウザの自動再生制限のため）。
+          </p>
+        </div>
+
+        {bgmEnabled && (
+          <label className="field">
+            <span className="field__label">BGMの音量: {Math.round(bgmVolume * 100)}%</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={Math.round(bgmVolume * 100)}
+              onChange={(e) => setBgmVolume(Number(e.target.value) / 100)}
+            />
+          </label>
+        )}
 
         {storage && (
           <div className="field">

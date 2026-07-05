@@ -1,5 +1,6 @@
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { BottomNav } from './components/BottomNav';
+import { BgmPlayer } from './components/BgmPlayer';
 import { Library } from './pages/Library';
 import { AddContent } from './pages/AddContent';
 import { Reader } from './pages/Reader';
@@ -26,6 +27,7 @@ export default function App() {
         </Routes>
       </main>
       {!hideNav && <BottomNav />}
+      <BgmPlayer />
     </div>
   );
 }
