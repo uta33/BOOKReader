@@ -1,20 +1,24 @@
 import { useEffect, useRef } from 'react';
 import { useBgmStore } from '../store/bgmStore';
+import { usePlaybackStore } from '../store/playbackStore';
 
 /** Looping ambient background sound bundled with the app. */
 const BGM_URL = '/bgm/focus.mp3';
 
 /**
  * App-wide background-music player. Mounted once; owns a single looping
- * <audio> element driven by the BGM store. Plays independently of the TTS
- * narration (both mix), and works across page navigation since it lives above
- * the router. Respects browser autoplay policy by retrying on the first user
- * gesture when play() is blocked.
+ * <audio> element driven by the BGM store. Plays only while the reader is
+ * narrating (so the ambient sound accompanies the read-aloud rather than
+ * running constantly), mixing under the narration. Lives above the router so
+ * it survives navigation.
  */
 export function BgmPlayer() {
   const enabled = useBgmStore((s) => s.enabled);
   const volume = useBgmStore((s) => s.volume);
+  const isNarrating = usePlaybackStore((s) => s.isNarrating);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const shouldPlay = enabled && isNarrating;
 
   // Create the audio element once.
   useEffect(() => {
@@ -33,29 +37,21 @@ export function BgmPlayer() {
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
 
-  // Play / pause following the enabled flag; recover from autoplay blocking.
+  // Follow narration: play while the reader is narrating, pause otherwise.
+  // Narration starts from a user gesture (pressing play), so autoplay is
+  // permitted; we still swallow a rejected play() defensively.
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (!enabled) {
+    if (shouldPlay) {
+      audio.volume = volume;
+      void audio.play().catch(() => {});
+    } else {
       audio.pause();
-      return;
     }
-    audio.volume = volume;
-    const start = () => void audio.play().catch(() => {});
-    audio.play().catch(() => {
-      // Autoplay blocked until a user gesture — start on the next interaction.
-      window.addEventListener('pointerdown', start, { once: true });
-      window.addEventListener('keydown', start, { once: true });
-    });
-    return () => {
-      window.removeEventListener('pointerdown', start);
-      window.removeEventListener('keydown', start);
-    };
-    // volume intentionally omitted: the effect above updates it live without
-    // restarting playback.
+    // volume handled by its own effect; don't restart playback on volume change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled]);
+  }, [shouldPlay]);
 
   return null;
 }
