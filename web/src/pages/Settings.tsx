@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
-import { VOICES, PREVIEW_TEXT } from '../constants/voices';
+import {
+  VOICES,
+  PREVIEW_TEXT,
+  QUALITY_LABEL,
+  pickVoice,
+  voiceQualityOf,
+  type VoiceQuality,
+} from '../constants/voices';
 import { SPEED_STEPS } from '../constants/speeds';
 import { useSettingsStore, type FontScale } from '../store/settingsStore';
 import { synthesize } from '../services/api';
@@ -27,7 +34,26 @@ export function Settings() {
     void getStorageInfo().then(setStorage);
   }, []);
 
-  const voices = VOICES.filter((v) => genderFilter === 'all' || v.gender === genderFilter);
+  const quality = voiceQualityOf(voiceName);
+  const currentGender = VOICES.find((v) => v.name === voiceName)?.gender;
+
+  // Switching quality immediately selects a matching voice (keeping gender when
+  // possible), so choosing 高音質 actually takes effect right away.
+  const changeQuality = (q: VoiceQuality) => {
+    if (q === quality) return;
+    setVoice(pickVoice(q, currentGender));
+  };
+
+  // Changing the gender filter also re-picks a matching voice at the same
+  // quality, so the selection never drifts out of the visible list.
+  const changeGender = (g: 'all' | 'female' | 'male') => {
+    setGenderFilter(g);
+    if (g !== 'all' && currentGender !== g) setVoice(pickVoice(quality, g));
+  };
+
+  const voices = VOICES.filter(
+    (v) => v.quality === quality && (genderFilter === 'all' || v.gender === genderFilter),
+  );
 
   const preview = async () => {
     setPreviewing(true);
@@ -75,13 +101,32 @@ export function Settings() {
         </div>
 
         <div className="field">
+          <span className="field__label">音質</span>
+          <div className="segmented">
+            {(['neural2', 'standard'] as const).map((q) => (
+              <button
+                key={q}
+                className={`segmented__btn${quality === q ? ' is-active' : ''}`}
+                onClick={() => changeQuality(q)}
+              >
+                {QUALITY_LABEL[q]}
+              </button>
+            ))}
+          </div>
+          <p className="hint">
+            高音質（Neural2）はより自然な読み上げです。どちらもGoogle TTS（要APIキー）で、
+            未設定時はブラウザ内蔵音声になります。
+          </p>
+        </div>
+
+        <div className="field">
           <span className="field__label">声フィルター</span>
           <div className="segmented">
             {(['all', 'female', 'male'] as const).map((g) => (
               <button
                 key={g}
                 className={`segmented__btn${genderFilter === g ? ' is-active' : ''}`}
-                onClick={() => setGenderFilter(g)}
+                onClick={() => changeGender(g)}
               >
                 {g === 'all' ? 'すべて' : g === 'female' ? '女性' : '男性'}
               </button>

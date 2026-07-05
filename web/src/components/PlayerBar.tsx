@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { SPEED_STEPS } from '../constants/speeds';
+import { QUALITY_LABEL, voiceQualityOf } from '../constants/voices';
 import { useSettingsStore } from '../store/settingsStore';
 import type { AudioMode } from '../hooks/useAudioPlayer';
 
@@ -16,8 +17,7 @@ interface Props {
   onGenerateCurrent: () => Promise<void>;
 }
 
-const MODE_LABEL: Record<AudioMode, string> = {
-  tts: '高品質音声',
+const MODE_LABEL: Record<Exclude<AudioMode, 'tts'>, string> = {
   speech: 'ブラウザ音声',
   timed: '自動送り',
 };
@@ -42,8 +42,15 @@ export function PlayerBar({
   onSkipBack,
   onGenerateCurrent,
 }: Props) {
-  const { speedStepIdx, setSpeedIdx } = useSettingsStore();
+  const { speedStepIdx, setSpeedIdx, voiceName } = useSettingsStore();
   const cycleSpeed = () => setSpeedIdx((speedStepIdx + 1) % SPEED_STEPS.length);
+
+  // For Google-TTS mode, reflect the actual voice quality (高音質 / 標準)
+  // rather than always claiming "高品質".
+  const modeLabel =
+    mode === 'tts'
+      ? `${QUALITY_LABEL[voiceQualityOf(voiceName)]}音声`
+      : MODE_LABEL[mode];
 
   const [genState, setGenState] = useState<GenState>('idle');
   const [genError, setGenError] = useState<string | null>(null);
@@ -73,7 +80,7 @@ export function PlayerBar({
           {currentIdx + 1} / {total}
         </span>
         <span className="player__mode" title="音声ソース">
-          {MODE_LABEL[mode]}
+          {modeLabel}
           {savedCount > 0 ? `・保存 ${Math.min(savedCount, total)}/${total}` : ''}
         </span>
       </div>
