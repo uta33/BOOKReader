@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useLibraryStore } from '../store/libraryStore';
 import { useReviewStore } from '../store/reviewStore';
+import { useStatsStore } from '../store/statsStore';
 
 export function Recap() {
   const { id } = useParams<{ id: string }>();
@@ -9,6 +10,7 @@ export function Recap() {
   const book = useLibraryStore((s) => s.books.find((b) => b.id === id));
   const updateBook = useLibraryStore((s) => s.updateBook);
   const addFromRecap = useReviewStore((s) => s.addFromRecap);
+  const addRecap = useStatsStore((s) => s.addRecap);
 
   const [summary, setSummary] = useState(book?.recap ?? '');
   const [saved, setSaved] = useState(false);
@@ -30,6 +32,7 @@ export function Recap() {
     if (!summary.trim()) return;
     updateBook(book.id, { recap: summary.trim(), recapCreatedAt: Date.now() });
     addFromRecap(book.id, book.title, summary.trim(), book.quiz);
+    if (!saved) addRecap();
     setSaved(true);
   };
 
@@ -78,7 +81,7 @@ export function Recap() {
                 復習へ
               </button>
               <button className="btn btn--ghost" onClick={() => navigate('/')}>
-                ライブラリへ
+                ホームへ
               </button>
             </div>
           </div>

@@ -11,6 +11,7 @@ import {
 import { useSettingsStore } from '../store/settingsStore';
 import { useLibraryStore } from '../store/libraryStore';
 import { usePlaybackStore } from '../store/playbackStore';
+import { useStatsStore } from '../store/statsStore';
 
 export type AudioMode = 'tts' | 'speech' | 'timed';
 
@@ -122,6 +123,15 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
     setNarrating(isPlaying);
   }, [isPlaying, setNarrating]);
   useEffect(() => () => setNarrating(false), [setNarrating]);
+
+  // Log listening time into the daily activity stats (streak / today's goal).
+  // The cleanup flushes on pause and on unmount alike.
+  const addListen = useStatsStore((s) => s.addListen);
+  useEffect(() => {
+    if (!isPlaying) return;
+    const startedAt = Date.now();
+    return () => addListen(Date.now() - startedAt);
+  }, [isPlaying, addListen]);
 
   // Changing the speed mid-sentence applies immediately to the playing clip.
   useEffect(() => {

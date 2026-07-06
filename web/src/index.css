@@ -715,3 +715,182 @@ input[type='range'] {
   width: 100%;
   accent-color: var(--accent);
 }
+
+/* Home (habit hub) */
+.streak {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.home__section {
+  margin-bottom: 20px;
+}
+.home__heading {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+.home__totals {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Today checklist */
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.checklist__row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: var(--white);
+  cursor: pointer;
+}
+.checklist__row.is-done {
+  border-color: var(--success);
+}
+.checklist__row.is-done .checklist__mark {
+  color: var(--success);
+}
+.checklist__row.is-muted {
+  opacity: 0.55;
+}
+.checklist__mark {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.checklist__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.checklist__label {
+  font-size: 15px;
+  font-weight: 700;
+}
+.checklist__sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+.progress--thin {
+  display: block;
+  margin-top: 2px;
+}
+.badge--inline {
+  position: static;
+  flex-shrink: 0;
+}
+
+/* Continue-listening hero card */
+.hero {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  background: var(--highlight);
+  border: 1px solid var(--accent-dim);
+  border-radius: 16px;
+  padding: 16px;
+  color: var(--white);
+  cursor: pointer;
+}
+.hero__eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.hero__title {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.hero__meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Activity calendar (12-week heatmap, sequential accent ramp) */
+.cal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  overflow-x: auto;
+}
+.cal__grid {
+  display: flex;
+  gap: 3px;
+  justify-content: space-between;
+}
+.cal__week {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+.cal__cell {
+  aspect-ratio: 1;
+  width: 100%;
+  min-width: 10px;
+  border-radius: 3px;
+  background: var(--surface-alt);
+}
+.cal__cell--l1 {
+  background: var(--accent-dim);
+}
+.cal__cell--l2 {
+  background: #b05a42;
+}
+.cal__cell--l3 {
+  background: var(--accent);
+}
+.cal__cell--today {
+  outline: 1px solid var(--white);
+  outline-offset: 1px;
+}
+.cal__cell--future {
+  background: transparent;
+}
+.cal__legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.cal__legend .cal__cell {
+  width: 10px;
+  height: 10px;
+  flex: none;
+}
+
+/* Voice-quality toggle in the player bar */
+.player__btn--quality {
+  width: auto;
+  min-width: 56px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
