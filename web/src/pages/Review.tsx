@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useReviewStore } from '../store/reviewStore';
 import { useLibraryStore } from '../store/libraryStore';
+import { useStatsStore } from '../store/statsStore';
 import { REVIEW_INTERVALS_MS } from '../services/spacedRepetition';
 import type { RecallGrade } from '../types/book';
 
@@ -11,6 +12,7 @@ export function Review() {
   const items = useReviewStore((s) => s.items);
   const grade = useReviewStore((s) => s.grade);
   const books = useLibraryStore((s) => s.books);
+  const addReview = useStatsStore((s) => s.addReview);
 
   // Snapshot the due queue once on mount so grading doesn't reshuffle mid-session.
   const queue = useMemo(() => items.filter((i) => i.dueAt <= Date.now()).map((i) => i.id), []);
@@ -26,6 +28,7 @@ export function Review() {
   const onGrade = (g: RecallGrade) => {
     if (!current) return;
     grade(current.id, g);
+    addReview();
     setRevealed(false);
     setPos((p) => p + 1);
   };
@@ -43,7 +46,7 @@ export function Review() {
             本を読み終えたら「ふりかえり」を書くと、あなたの要約とクイズが間隔をあけて出題されます。
           </p>
           <Link to="/" className="btn btn--primary">
-            ライブラリへ
+            ホームへ
           </Link>
         </div>
       ) : done ? (
@@ -51,7 +54,7 @@ export function Review() {
           <p className="empty__title">🎉 今日の復習を完了しました</p>
           <p className="empty__sub">{queue.length} 件を復習しました。また間隔をあけて出題されます。</p>
           <Link to="/" className="btn btn--primary">
-            ライブラリへ
+            ホームへ
           </Link>
         </div>
       ) : current ? (

@@ -1,6 +1,7 @@
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { BottomNav } from './components/BottomNav';
 import { BgmPlayer } from './components/BgmPlayer';
+import { Home } from './pages/Home';
 import { Library } from './pages/Library';
 import { AddContent } from './pages/AddContent';
 import { Reader } from './pages/Reader';
@@ -18,7 +19,8 @@ export default function App() {
     <div className={`app${hideNav ? '' : ' app--with-nav'}`}>
       <main className="app__main">
         <Routes>
-          <Route path="/" element={<Library />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/library" element={<Library />} />
           <Route path="/add" element={<AddContent />} />
           <Route path="/reader/:id" element={<Reader />} />
           <Route path="/recap/:id" element={<Recap />} />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { SPEED_STEPS } from '../constants/speeds';
-import { QUALITY_LABEL, voiceQualityOf } from '../constants/voices';
+import { QUALITY_LABEL, VOICES, pickVoice, voiceQualityOf } from '../constants/voices';
 import { useSettingsStore } from '../store/settingsStore';
 import type { AudioMode } from '../hooks/useAudioPlayer';
 
@@ -42,15 +42,20 @@ export function PlayerBar({
   onSkipBack,
   onGenerateCurrent,
 }: Props) {
-  const { speedStepIdx, setSpeedIdx, voiceName } = useSettingsStore();
+  const { speedStepIdx, setSpeedIdx, voiceName, setVoice } = useSettingsStore();
   const cycleSpeed = () => setSpeedIdx((speedStepIdx + 1) % SPEED_STEPS.length);
 
   // For Google-TTS mode, reflect the actual voice quality (高音質 / 標準)
   // rather than always claiming "高品質".
-  const modeLabel =
-    mode === 'tts'
-      ? `${QUALITY_LABEL[voiceQualityOf(voiceName)]}音声`
-      : MODE_LABEL[mode];
+  const quality = voiceQualityOf(voiceName);
+  const modeLabel = mode === 'tts' ? `${QUALITY_LABEL[quality]}音声` : MODE_LABEL[mode];
+
+  // Toggle 高音質⇄標準 keeping the current voice's gender; shares the
+  // settings store, so the Settings page stays in sync automatically.
+  const toggleQuality = () => {
+    const next = quality === 'neural2' ? 'standard' : 'neural2';
+    setVoice(pickVoice(next, VOICES.find((v) => v.name === voiceName)?.gender));
+  };
 
   const [genState, setGenState] = useState<GenState>('idle');
   const [genError, setGenError] = useState<string | null>(null);
@@ -100,6 +105,14 @@ export function PlayerBar({
         </button>
         <button className="player__btn player__btn--speed" onClick={cycleSpeed} aria-label="速度">
           {SPEED_STEPS[speedStepIdx]}x
+        </button>
+        <button
+          className="player__btn player__btn--quality"
+          onClick={toggleQuality}
+          aria-label="音質切り替え"
+          title="音質を切り替え（高音質⇄標準）。切り替え後は新しい声で音声が生成されます"
+        >
+          {QUALITY_LABEL[quality]}
         </button>
         <button
           className="player__btn player__btn--gen"

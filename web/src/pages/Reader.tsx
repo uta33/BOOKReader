@@ -25,8 +25,14 @@ export function Reader() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const book = useLibraryStore((s) => s.books.find((b) => b.id === id));
+  const updateBook = useLibraryStore((s) => s.updateBook);
   const fontScale = useSettingsStore((s) => s.fontScale);
   const [showRecapCta, setShowRecapCta] = useState(false);
+
+  // Remember which book was opened last so Home's "continue" card picks it.
+  useEffect(() => {
+    if (id) updateBook(id, { lastOpenedAt: Date.now() });
+  }, [id, updateBook]);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const player = useAudioPlayer(book ?? EMPTY_BOOK, () => setShowRecapCta(true));

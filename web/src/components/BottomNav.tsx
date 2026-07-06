@@ -2,7 +2,8 @@ import { NavLink } from 'react-router-dom';
 import { useReviewStore } from '../store/reviewStore';
 
 const items = [
-  { to: '/', label: 'ライブラリ', icon: '📚', end: true },
+  { to: '/', label: 'ホーム', icon: '🏠', end: true },
+  { to: '/library', label: 'ライブラリ', icon: '📚' },
   { to: '/add', label: '追加', icon: '＋' },
   { to: '/review', label: '復習', icon: '🔁' },
   { to: '/settings', label: '設定', icon: '⚙️' },

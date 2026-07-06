@@ -23,6 +23,8 @@ export interface Book {
   sentences: Sentence[];
   lastSentenceIdx: number;
   createdAt: number;
+  /** Last time the reader was opened — drives Home's "continue" card. */
+  lastOpenedAt?: number;
   /** Content-specific review questions (AI-generated). */
   quiz?: QuizItem[];
   /** Effect #2 — the user's own-words summary + how they'll apply it. */
