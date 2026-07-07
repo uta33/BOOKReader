@@ -12,12 +12,27 @@ export type TTSResult =
 const ENDPOINT = 'https://texttospeech.googleapis.com/v1/text:synthesize';
 
 /**
+ * Remove notation the TTS engine would vocalize awkwardly — markdown
+ * leftovers, transcript timestamps, and stage directions — so narration
+ * stays smooth even for books imported before the client-side cleanup.
+ */
+export function sanitizeForSpeech(raw: string): string {
+  return raw
+    .replace(/[[（(]?\b\d{1,2}:\d{2}(?::\d{2})?\b[\]）)]?/g, '') // timestamps
+    .replace(/[（(](間|笑い?|拍手|ため息|沈黙|ポーズ|BGM[^）)]*|効果音[^）)]*)[）)]/g, '')
+    .replace(/(ナレーション|ナレーター|話者\s*\d*|スピーカー\s*\d*)\s*[:：]\s*/g, '')
+    .replace(/[*_`#>|~]+/g, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+/**
  * Synthesize Japanese speech via Google Cloud TTS.
  * Returns { fallback: true } when no key is configured so the browser can fall
  * back to the built-in SpeechSynthesis API (zero-config audio).
  */
 export async function synthesize(input: TTSInput): Promise<TTSResult> {
-  const text = input.text?.trim();
+  const text = sanitizeForSpeech(input.text ?? '');
   if (!text) throw new Error('text is required');
 
   const apiKey = process.env.GOOGLE_TTS_API_KEY;

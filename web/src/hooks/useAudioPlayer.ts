@@ -101,6 +101,9 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
   // In-flight synthesis requests keyed by clip key, so windowed prefetch and
   // an explicit "generate" click racing on the same sentence share one call.
   const pendingRef = useRef(new Map<string, Promise<string | null>>());
+  // Next sentence's Audio element, built while the current one plays, so the
+  // hand-off at the sentence boundary has no fetch/decode gap.
+  const nextAudioRef = useRef<{ idx: number; audio: HTMLAudioElement } | null>(null);
 
   const settings = useRef({ voiceName, speakingRate, pitch });
   settings.current = { voiceName, speakingRate, pitch };
@@ -237,16 +240,39 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
     [sentences, advance],
   );
 
+  // Pre-build the following sentence's Audio element during playback so the
+  // sentence-to-sentence transition is seamless (no IndexedDB read + base64
+  // decode pause at the boundary).
+  const prepareNext = useCallback(
+    async (nextIdx: number, token: number) => {
+      nextAudioRef.current = null;
+      if (nextIdx >= total) return;
+      const b64 = await ensureClip(nextIdx).catch(() => null);
+      if (!b64 || token !== tokenRef.current) return;
+      const audio = new Audio(`data:audio/mp3;base64,${b64}`);
+      audio.preload = 'auto';
+      nextAudioRef.current = { idx: nextIdx, audio };
+    },
+    [total, ensureClip],
+  );
+
   const playFrom = useCallback(
     async (idx: number) => {
       stopAudioPrimitives();
       const token = ++tokenRef.current;
-      const b64 = await ensureClip(idx).catch(() => null);
-      if (token !== tokenRef.current || !playingRef.current) return;
 
-      if (b64) {
+      // Use the preloaded element when it matches; otherwise fetch normally.
+      const pre = nextAudioRef.current;
+      nextAudioRef.current = null;
+      let audio = pre && pre.idx === idx ? pre.audio : null;
+      if (!audio) {
+        const b64 = await ensureClip(idx).catch(() => null);
+        if (token !== tokenRef.current || !playingRef.current) return;
+        if (b64) audio = new Audio(`data:audio/mp3;base64,${b64}`);
+      }
+
+      if (audio) {
         setMode('tts');
-        const audio = new Audio(`data:audio/mp3;base64,${b64}`);
         audio.playbackRate = settings.current.speakingRate;
         audioRef.current = audio;
         audio.onended = () => {
@@ -255,11 +281,12 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
         audio.play().catch(() => {
           if (token === tokenRef.current) speakViaSpeech(idx, token);
         });
+        void prepareNext(idx + 1, token);
       } else {
         speakViaSpeech(idx, token);
       }
     },
-    [ensureClip, stopAudioPrimitives, advance, speakViaSpeech],
+    [ensureClip, stopAudioPrimitives, advance, speakViaSpeech, prepareNext],
   );
 
   const play = useCallback(() => {

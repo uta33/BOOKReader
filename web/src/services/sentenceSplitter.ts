@@ -28,6 +28,20 @@ function splitIntoSentences(text: string): string[] {
 
 const SECTION_RE = /^(第[0-9０-９一二三四五六七八九十]+章|まとめ|はじめに|序章|結論)/;
 
+/** Production labels whose whole line carries no spoken content. */
+const PRODUCTION_LABEL_RE = /^(BGM|SE|効果音|音楽|テロップ|字幕|注記?|備考)\s*[:：]/i;
+
+/** Speaker labels from transcripts — the words after them ARE spoken content. */
+const SPEAKER_LABEL_RE =
+  /^(ナレーション|ナレーター|話者\s*\d*|スピーカー\s*\d*|司会|男性|女性|Speaker\s*\d*)\s*[:：]\s*/i;
+
+/** Inline stage directions that TTS would read out loud verbatim. */
+const INLINE_DIRECTION_RE = /[（(](間|笑い?|拍手|ため息|沈黙|ポーズ)[）)]/g;
+
+/** Timestamp tokens typical of transcripts: [00:15], 1:23:45, (12:34). */
+const TIMESTAMP_ONLY_RE = /^[[（(]?\d{1,2}:\d{2}(:\d{2})?[\]）)]?$/;
+const LEADING_TIMESTAMP_RE = /^[[（(]?\d{1,2}:\d{2}(:\d{2})?[\]）)]?\s+/;
+
 /** Strip inline Markdown so it isn't read aloud verbatim (**, *, _, `, links). */
 function stripInlineMarkdown(s: string): string {
   return s
@@ -58,6 +72,22 @@ function normalizeLine(raw: string): NormalizedLine | null {
   // Horizontal rules and code-fence markers have no spoken content.
   if (/^([-*_])\1{2,}$/.test(line) || /^```/.test(line) || /^~~~/.test(line)) return null;
 
+  // Transcript/production directives are not narration: timestamps,
+  // ※-annotations, bracket-only stage directions, and BGM/効果音 labels.
+  if (TIMESTAMP_ONLY_RE.test(line)) return null;
+  if (/^※/.test(line)) return null;
+  if (/^[（(][^（）()]*[）)]$/.test(line)) return null;
+  if (PRODUCTION_LABEL_RE.test(line)) return null;
+
+  // 【…】-only lines: production notes are dropped, otherwise it's a heading.
+  const boxed = line.match(/^【([^】]+)】$/);
+  if (boxed) {
+    if (PRODUCTION_LABEL_RE.test(boxed[1]) || /^(BGM|SE|効果音|音楽|テロップ|字幕)$/i.test(boxed[1]))
+      return null;
+    const text = stripInlineMarkdown(boxed[1]);
+    return text ? { text, isHeading: true } : null;
+  }
+
   // Markdown ATX heading: "# タイトル" … "###### …"
   const atx = line.match(/^#{1,6}\s+(.*)$/);
   if (atx) {
@@ -68,7 +98,12 @@ function normalizeLine(raw: string): NormalizedLine | null {
   // Strip leading block markers: blockquotes, list bullets, ordered markers.
   line = line.replace(/^>\s?/, '');
   line = line.replace(/^([-*+]|\d+[.)])\s+/, '');
+  // Leading timestamps and speaker labels: keep the words, drop the marker
+  // (timestamp first — transcripts write "[01:23] 話者1: …").
+  line = line.replace(LEADING_TIMESTAMP_RE, '');
+  line = line.replace(SPEAKER_LABEL_RE, '');
   line = stripInlineMarkdown(line);
+  line = line.replace(INLINE_DIRECTION_RE, '').trim();
   if (!line) return null;
 
   const isHeading = SECTION_RE.test(line) && line.length <= 40;
