@@ -69,7 +69,7 @@ export function Reader() {
     );
   }
 
-  const allSaved = player.savedCount >= player.total && player.total > 0;
+  const allSaved = player.savedCount >= player.chunkTotal && player.chunkTotal > 0;
 
   const onSaveAll = async () => {
     setSaveError(null);
@@ -151,6 +151,7 @@ export function Reader() {
         total={player.total}
         currentIdx={player.currentIdx}
         savedCount={player.savedCount}
+        chunkTotal={player.chunkTotal}
         onToggle={player.toggle}
         onSkipForward={player.skipForward}
         onSkipBack={player.skipBack}

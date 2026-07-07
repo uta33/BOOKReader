@@ -4,7 +4,7 @@
 // Vercel transpiles api/*.ts per-file (not bundled) and preserves the import
 // specifier verbatim, so it must point at the post-compile output filename
 // or Node's ESM loader throws ERR_MODULE_NOT_FOUND at runtime.
-import { synthesize } from '../server/lib/tts.js';
+import { synthesize, synthesizeChunk, type ChunkPart } from '../server/lib/tts.js';
 
 // Without this, Vercel falls back to its platform default (10s on Hobby),
 // which a slow cold start + Google TTS round trip can exceed — the platform
@@ -14,7 +14,13 @@ export const config = { maxDuration: 30 };
 
 interface Req {
   method?: string;
-  body?: { text?: string; voiceName?: string; speakingRate?: number; pitch?: number };
+  body?: {
+    text?: string;
+    parts?: ChunkPart[];
+    voiceName?: string;
+    speakingRate?: number;
+    pitch?: number;
+  };
 }
 interface Res {
   status: (code: number) => Res;
@@ -27,13 +33,20 @@ export default async function handler(req: Req, res: Res) {
     return;
   }
   try {
-    const { text, voiceName, speakingRate, pitch } = req.body ?? {};
-    const result = await synthesize({
-      text: text ?? '',
-      voiceName: voiceName ?? 'ja-JP-Neural2-B',
-      speakingRate: speakingRate ?? 1.0,
-      pitch: pitch ?? 0.0,
-    });
+    const { text, parts, voiceName, speakingRate, pitch } = req.body ?? {};
+    // Chunk mode: one continuous utterance with per-sentence timepoints.
+    const result = parts
+      ? await synthesizeChunk({
+          parts,
+          voiceName: voiceName ?? 'ja-JP-Neural2-B',
+          pitch: pitch ?? 0.0,
+        })
+      : await synthesize({
+          text: text ?? '',
+          voiceName: voiceName ?? 'ja-JP-Neural2-B',
+          speakingRate: speakingRate ?? 1.0,
+          pitch: pitch ?? 0.0,
+        });
     res.status(200).json(result);
   } catch (e) {
     res.status(400).json({ error: e instanceof Error ? e.message : String(e) });

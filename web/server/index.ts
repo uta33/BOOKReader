@@ -1,7 +1,7 @@
 import express from 'express';
 import { generateSummaryStream } from './lib/summary.ts';
 import { generateQuiz } from './lib/quiz.ts';
-import { synthesize } from './lib/tts.ts';
+import { synthesize, synthesizeChunk } from './lib/tts.ts';
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
@@ -45,13 +45,19 @@ app.post('/api/quiz', async (req, res) => {
 
 app.post('/api/tts', async (req, res) => {
   try {
-    const { text, voiceName, speakingRate, pitch } = req.body ?? {};
-    const result = await synthesize({
-      text,
-      voiceName: voiceName ?? 'ja-JP-Neural2-B',
-      speakingRate: speakingRate ?? 1.0,
-      pitch: pitch ?? 0.0,
-    });
+    const { text, parts, voiceName, speakingRate, pitch } = req.body ?? {};
+    const result = parts
+      ? await synthesizeChunk({
+          parts,
+          voiceName: voiceName ?? 'ja-JP-Neural2-B',
+          pitch: pitch ?? 0.0,
+        })
+      : await synthesize({
+          text,
+          voiceName: voiceName ?? 'ja-JP-Neural2-B',
+          speakingRate: speakingRate ?? 1.0,
+          pitch: pitch ?? 0.0,
+        });
     res.json(result);
   } catch (e) {
     res.status(400).json({ error: e instanceof Error ? e.message : String(e) });

@@ -76,6 +76,36 @@ export async function generateQuiz(script: string): Promise<QuizResponse> {
 
 export type TTSResponse = { audioContent: string; fallback: false } | { fallback: true };
 
+export interface Timepoint {
+  markName: string;
+  timeSeconds: number;
+}
+
+export type ChunkTTSResponse =
+  | { audioContent: string; timepoints: Timepoint[]; fallback: false }
+  | { fallback: true };
+
+/**
+ * Synthesize a multi-sentence chunk as one continuous utterance. Returns the
+ * audio plus a start-time per sentence (keyed by sentence id) for highlight
+ * sync and tap-to-seek.
+ */
+export async function synthesizeChunk(
+  parts: { id: string; text: string }[],
+  voiceName: string,
+  pitch: number,
+): Promise<ChunkTTSResponse> {
+  const res = await fetch('/api/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ parts, voiceName, pitch }),
+  });
+  if (!res.ok) {
+    throw new Error(await readError(res, `音声生成に失敗しました (${res.status})`));
+  }
+  return res.json();
+}
+
 export async function synthesize(
   text: string,
   voiceName: string,

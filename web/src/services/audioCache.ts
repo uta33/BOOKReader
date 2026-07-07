@@ -1,19 +1,34 @@
-// IndexedDB store for generated MP3 audio (base64).
+// IndexedDB store for generated narration audio.
 //
-// Keys are `bookId:sentenceId:voice` — playback speed is applied client-side
-// via HTMLAudioElement.playbackRate, so clips synthesized once stay valid for
-// every speed setting. Saved clips play offline at any time.
+// v2: audio is stored per CHUNK (a ~400-char group of sentences synthesized
+// as one continuous utterance) together with its per-sentence timepoints.
+// Keys are `bookId:chunkId:voice` — playback speed is applied client-side via
+// HTMLAudioElement.playbackRate, so chunks synthesized once stay valid for
+// every speed setting. Saved chunks play offline at any time.
+
+import type { Timepoint } from './api';
 
 const DB_NAME = 'bookreader-audio';
-const STORE = 'clips';
+const STORE = 'chunks';
 let dbPromise: Promise<IDBDatabase> | null = null;
+
+export interface ChunkClip {
+  /** base64 MP3 of the whole chunk. */
+  audio: string;
+  /** Start time of each sentence (markName = sentence id). */
+  timepoints: Timepoint[];
+}
 
 function openDb(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = indexedDB.open(DB_NAME, 2);
     req.onupgradeneeded = () => {
-      req.result.createObjectStore(STORE);
+      const db = req.result;
+      // Legacy v1 per-sentence clips are unusable under chunk playback —
+      // drop them to free space; chunks are re-synthesized on demand.
+      if (db.objectStoreNames.contains('clips')) db.deleteObjectStore('clips');
+      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -21,32 +36,32 @@ function openDb(): Promise<IDBDatabase> {
   return dbPromise;
 }
 
-export function clipKey(bookId: string, sentenceId: string, voice: string): string {
-  return `${bookId}:${sentenceId}:${voice}`;
+export function chunkKey(bookId: string, chunkId: string, voice: string): string {
+  return `${bookId}:${chunkId}:${voice}`;
 }
 
-export async function getClip(key: string): Promise<string | undefined> {
+export async function getChunkClip(key: string): Promise<ChunkClip | undefined> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readonly');
     const req = tx.objectStore(STORE).get(key);
-    req.onsuccess = () => resolve(req.result as string | undefined);
+    req.onsuccess = () => resolve(req.result as ChunkClip | undefined);
     req.onerror = () => reject(req.error);
   });
 }
 
-export async function putClip(key: string, base64: string): Promise<void> {
+export async function putChunkClip(key: string, clip: ChunkClip): Promise<void> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).put(base64, key);
+    tx.objectStore(STORE).put(clip, key);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
 }
 
-/** Count saved clips for a book (any voice). */
-export async function countClipsForBook(bookId: string): Promise<number> {
+/** Count saved chunks for a book (any voice). */
+export async function countChunksForBook(bookId: string): Promise<number> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readonly');
