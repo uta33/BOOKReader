@@ -12,6 +12,7 @@ import { useSettingsStore, type FontScale } from '../store/settingsStore';
 import { useBgmStore } from '../store/bgmStore';
 import { synthesize } from '../services/api';
 import { getStorageInfo, type StorageInfo } from '../services/audioCache';
+import { backupFilename, buildBackup, restoreBackup } from '../services/backup';
 
 const FONT_LABEL: Record<FontScale, string> = { s: '小', m: '中', l: '大' };
 
@@ -37,6 +38,38 @@ export function Settings() {
   const [genderFilter, setGenderFilter] = useState<'all' | 'female' | 'male'>('all');
   const [previewing, setPreviewing] = useState(false);
   const [storage, setStorage] = useState<StorageInfo | null>(null);
+  const [backupMsg, setBackupMsg] = useState<string | null>(null);
+
+  const onExportBackup = () => {
+    setBackupMsg(null);
+    try {
+      const { json, summary } = buildBackup();
+      const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = backupFilename();
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      setBackupMsg(`✅ 書き出しました（本 ${summary.books}冊・復習 ${summary.reviews}件）`);
+    } catch (e) {
+      setBackupMsg(`⚠ ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
+  const onImportBackup = async (file: File | undefined) => {
+    if (!file) return;
+    setBackupMsg(null);
+    if (!confirm('現在のデータをバックアップの内容で上書きします。よろしいですか？')) return;
+    try {
+      const summary = restoreBackup(await file.text());
+      alert(`復元しました（本 ${summary.books}冊・復習 ${summary.reviews}件）。アプリを再読み込みします。`);
+      location.reload();
+    } catch (e) {
+      setBackupMsg(`⚠ ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
 
   useEffect(() => {
     void getStorageInfo().then(setStorage);
@@ -238,6 +271,33 @@ export function Settings() {
             Vaultの「BOOKReader」フォルダにノートとして作成されます（Obsidianアプリが必要）。
           </p>
         </label>
+
+        <div className="field">
+          <span className="field__label">バックアップ</span>
+          <div className="backup__actions">
+            <button className="btn btn--primary" onClick={onExportBackup}>
+              データを書き出す（JSON）
+            </button>
+            <label className="btn btn--ghost backup__import">
+              バックアップから復元
+              <input
+                type="file"
+                accept=".json,application/json"
+                className="backup__file"
+                onChange={(e) => {
+                  void onImportBackup(e.target.files?.[0]);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+          </div>
+          {backupMsg && <p className="hint">{backupMsg}</p>}
+          <p className="hint">
+            本・ふりかえり・復習スケジュール・学習記録・設定をすべて1つのファイルに保存します。
+            機種変更やブラウザのデータ削除に備えて定期的に書き出してください
+            （音声はファイルに含まれず、復元後に自動で再生成されます）。
+          </p>
+        </div>
 
         {storage && (
           <div className="field">

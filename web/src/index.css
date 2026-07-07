@@ -936,3 +936,17 @@ input[type='range'] {
 .menu__item:disabled {
   opacity: 0.5;
 }
+
+/* Backup section */
+.backup__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.backup__import {
+  text-align: center;
+  cursor: pointer;
+}
+.backup__file {
+  display: none;
+}
