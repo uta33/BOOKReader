@@ -13,7 +13,10 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "start:api": "tsx server/index.ts"
+    "start:api": "tsx server/index.ts",
+    "test:unit": "tsx tests/unit/smooth.test.mts && tsx tests/unit/chunks.test.mts && tsx tests/unit/obsidian.test.mts && tsx tests/unit/backup.test.mts",
+    "test:e2e": "node tests/e2e/run.mjs",
+    "test": "npm run test:unit && npm run test:e2e"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.0",
@@ -30,6 +33,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.1.0",
     "express": "^5.0.1",
+    "playwright": "^1.61.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
