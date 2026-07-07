@@ -11,10 +11,13 @@ interface SettingsState {
   speakingRate: number;
   pitch: number;
   fontScale: FontScale;
+  /** Obsidian vault name for obsidian:// export (empty = last-opened vault). */
+  obsidianVault: string;
   setVoice: (name: string) => void;
   setSpeedIdx: (idx: number) => void;
   setPitch: (pitch: number) => void;
   setFontScale: (scale: FontScale) => void;
+  setObsidianVault: (vault: string) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -25,10 +28,12 @@ export const useSettingsStore = create<SettingsState>()(
       speakingRate: SPEED_STEPS[DEFAULT_SPEED_IDX],
       pitch: 0.0,
       fontScale: 'm',
+      obsidianVault: '',
       setVoice: (name) => set({ voiceName: name }),
       setSpeedIdx: (idx) => set({ speedStepIdx: idx, speakingRate: SPEED_STEPS[idx] }),
       setPitch: (pitch) => set({ pitch }),
       setFontScale: (fontScale) => set({ fontScale }),
+      setObsidianVault: (obsidianVault) => set({ obsidianVault }),
     }),
     { name: 'bookreader_settings' },
   ),
