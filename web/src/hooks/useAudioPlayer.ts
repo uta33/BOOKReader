@@ -43,6 +43,16 @@ async function synthesizeChunkWithRetry(
   }
 }
 
+function b64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+/** Blob URLs kept alive at once (current + next + a little slack). */
+const URL_CACHE_MAX = 4;
+
 export interface SaveProgress {
   done: number;
   total: number;
@@ -116,11 +126,9 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
   // In-flight synthesis requests keyed by chunk key, so prefetch and an
   // explicit "generate" click racing on the same chunk share one call.
   const pendingRef = useRef(new Map<string, Promise<ChunkClip | null>>());
-  // Next chunk's Audio element, built while the current one plays, so the
-  // chunk hand-off has no fetch/decode gap.
-  const nextAudioRef = useRef<{ ci: number; audio: HTMLAudioElement; clip: ChunkClip } | null>(
-    null,
-  );
+  // Decoded Blob URLs per chunk key. Preparing the next chunk's URL during
+  // playback makes the hand-off a cheap src swap with no decode gap.
+  const urlCacheRef = useRef(new Map<string, string>());
 
   const settings = useRef({ voiceName, speakingRate, pitch });
   settings.current = { voiceName, speakingRate, pitch };
@@ -167,12 +175,44 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
     [book.id, updateBook],
   );
 
+  // ONE persistent audio element, activated by the user's first play gesture
+  // and reused for every chunk via src swapping. iOS blocks NEW audio
+  // elements from starting while the app is backgrounded (screen locked),
+  // but an already-activated element may keep playing and change src — this
+  // is what makes background/lock-screen playback work.
+  const getAudioEl = useCallback((): HTMLAudioElement => {
+    if (!audioRef.current) {
+      const el = new Audio();
+      el.preload = 'auto';
+      audioRef.current = el;
+    }
+    return audioRef.current;
+  }, []);
+
+  const blobUrlFor = useCallback((key: string, clip: ChunkClip): string => {
+    const cache = urlCacheRef.current;
+    const existing = cache.get(key);
+    if (existing) return existing;
+    const url = URL.createObjectURL(
+      new Blob([b64ToBytes(clip.audio) as BlobPart], { type: 'audio/mpeg' }),
+    );
+    cache.set(key, url);
+    // Evict oldest entries (Map preserves insertion order).
+    while (cache.size > URL_CACHE_MAX) {
+      const [oldKey, oldUrl] = cache.entries().next().value as [string, string];
+      cache.delete(oldKey);
+      if (audioRef.current?.src !== oldUrl) URL.revokeObjectURL(oldUrl);
+    }
+    return url;
+  }, []);
+
   const stopAudioPrimitives = useCallback(() => {
+    // Keep the element itself (its playback permission must survive) —
+    // just silence it and detach the per-chunk handlers.
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.onended = null;
       audioRef.current.ontimeupdate = null;
-      audioRef.current = null;
     }
     playingChunkRef.current = null;
     if (timerRef.current) {
@@ -287,19 +327,32 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
 
   // ---- Chunked TTS playback. ----
 
-  // Pre-build the following chunk's Audio element during playback so the
-  // chunk-to-chunk transition is seamless.
+  // Keep the lock-screen scrubber in sync with the playing chunk.
+  const updatePositionState = useCallback(() => {
+    if (!('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
+    const el = audioRef.current;
+    if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return;
+    try {
+      navigator.mediaSession.setPositionState({
+        duration: el.duration,
+        position: Math.min(el.currentTime, el.duration),
+        playbackRate: el.playbackRate,
+      });
+    } catch {
+      /* older browsers */
+    }
+  }, []);
+
+  // Pre-synthesize + pre-decode the following chunk during playback so the
+  // chunk-to-chunk transition is a cheap src swap.
   const prepareNextChunk = useCallback(
     async (ci: number, token: number) => {
-      nextAudioRef.current = null;
       if (ci >= chunks.length) return;
       const clip = await ensureChunkClip(ci).catch(() => null);
       if (!clip || token !== tokenRef.current) return;
-      const audio = new Audio(`data:audio/mp3;base64,${clip.audio}`);
-      audio.preload = 'auto';
-      nextAudioRef.current = { ci, audio, clip };
+      blobUrlFor(chunkKey(book.id, chunks[ci].id, settings.current.voiceName), clip);
     },
-    [chunks.length, ensureChunkClip],
+    [book.id, chunks, ensureChunkClip, blobUrlFor],
   );
 
   const playChunk = useCallback(
@@ -307,38 +360,30 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
       stopAudioPrimitives();
       const token = ++tokenRef.current;
 
-      // Use the preloaded element when it matches; otherwise fetch normally.
-      const pre = nextAudioRef.current;
-      nextAudioRef.current = null;
-      let audio: HTMLAudioElement | null = null;
-      let clip: ChunkClip | null = null;
-      if (pre && pre.ci === ci) {
-        audio = pre.audio;
-        clip = pre.clip;
-      } else {
-        clip = await ensureChunkClip(ci).catch(() => null);
-        if (token !== tokenRef.current || !playingRef.current) return;
-        if (clip) audio = new Audio(`data:audio/mp3;base64,${clip.audio}`);
-      }
-
-      if (!audio || !clip) {
+      const clip = await ensureChunkClip(ci).catch(() => null);
+      if (token !== tokenRef.current || !playingRef.current) return;
+      if (!clip) {
         fallbackPlay(seekSentenceIdx ?? idxRef.current);
         return;
       }
 
       const chunk = chunks[ci];
-      const theClip = clip;
+      const audio = getAudioEl();
+      const url = blobUrlFor(chunkKey(book.id, chunk.id, settings.current.voiceName), clip);
       setMode('tts');
-      playingChunkRef.current = { ci, clip: theClip };
+      playingChunkRef.current = { ci, clip };
+      const sameSrc = audio.src === url;
+      if (!sameSrc) audio.src = url;
       audio.playbackRate = settings.current.speakingRate;
-      audioRef.current = audio;
 
-      // Seek to a sentence inside the chunk (resume / tap-to-jump).
-      if (seekSentenceIdx !== undefined && seekSentenceIdx > chunk.startIdx) {
-        const tp = theClip.timepoints.find(
-          (t) => t.markName === sentences[seekSentenceIdx]?.id,
-        );
-        if (tp) {
+      // Seek to a sentence inside the chunk (resume / tap-to-jump). When the
+      // element still holds this chunk at that very sentence (pause → play),
+      // resume mid-sentence instead of rewinding to the sentence start.
+      if (seekSentenceIdx !== undefined) {
+        const alreadyThere =
+          sameSrc && sentenceAtTime(chunk, clip, audio.currentTime) === seekSentenceIdx;
+        const tp = clip.timepoints.find((t) => t.markName === sentences[seekSentenceIdx]?.id);
+        if (!alreadyThere && tp) {
           const seekTo = tp.timeSeconds;
           if (audio.readyState >= 1) audio.currentTime = seekTo;
           else
@@ -350,12 +395,16 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
               { once: true },
             );
         }
+      } else if (!sameSrc) {
+        // Fresh chunk starts at its head.
+        if (audio.readyState >= 1) audio.currentTime = 0;
       }
 
       audio.ontimeupdate = () => {
         if (token !== tokenRef.current) return;
-        const gi = sentenceAtTime(chunk, theClip, audio.currentTime);
+        const gi = sentenceAtTime(chunk, clip, audio.currentTime);
         if (gi !== idxRef.current) setIdx(gi);
+        updatePositionState();
       };
       audio.onended = () => {
         if (token !== tokenRef.current || !playingRef.current) return;
@@ -369,12 +418,13 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
         setIdx(chunks[nc].startIdx);
         void playChunk(nc);
       };
-      audio.play().catch(() => {
+      audio.play().then(updatePositionState).catch(() => {
         if (token === tokenRef.current) fallbackPlay(idxRef.current);
       });
       void prepareNextChunk(ci + 1, token);
     },
     [
+      book.id,
       chunks,
       sentences,
       ensureChunkClip,
@@ -384,6 +434,9 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
       sentenceAtTime,
       setIdx,
       onReachedEnd,
+      getAudioEl,
+      blobUrlFor,
+      updatePositionState,
     ],
   );
 
@@ -497,10 +550,7 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
         if (clip === null) {
           throw new Error('高品質音声（Google TTS）が未設定のためダウンロードできません。');
         }
-        const bin = atob(clip.audio);
-        const bytes = new Uint8Array(bin.length);
-        for (let j = 0; j < bin.length; j++) bytes[j] = bin.charCodeAt(j);
-        buffers.push(bytes);
+        buffers.push(b64ToBytes(clip.audio));
         setSaveProgress({ done: i + 1, total: chunkTotal });
       }
       setSavedCount(await countChunksForBook(book.id));
@@ -521,12 +571,78 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
     }
   }, [chunks, ensureChunkClip]);
 
+  // ---- Media Session: lock-screen / notification metadata & controls. ----
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !book.title) return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: book.title,
+      artist: 'BOOKReader',
+      artwork: [
+        { src: '/icon-192-v2.png', sizes: '192x192', type: 'image/png' },
+        { src: '/icon-512-v2.png', sizes: '512x512', type: 'image/png' },
+      ],
+    });
+  }, [book.title]);
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+  }, [isPlaying]);
+
+  // Latest-callback refs so the handlers registered once stay fresh.
+  const apiRef = useRef({ play, pause, skipForward, skipBack });
+  apiRef.current = { play, pause, skipForward, skipBack };
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    const ms = navigator.mediaSession;
+    const seekBy = (delta: number) => {
+      const el = audioRef.current;
+      if (!el || !Number.isFinite(el.duration)) return;
+      el.currentTime = Math.max(0, Math.min(el.duration - 0.1, el.currentTime + delta));
+    };
+    const set = (type: MediaSessionAction, fn: MediaSessionActionHandler | null) => {
+      try {
+        ms.setActionHandler(type, fn);
+      } catch {
+        /* action unsupported on this browser */
+      }
+    };
+    set('play', () => apiRef.current.play());
+    set('pause', () => apiRef.current.pause());
+    set('previoustrack', () => apiRef.current.skipBack());
+    set('nexttrack', () => apiRef.current.skipForward());
+    set('seekbackward', (d) => seekBy(-(d.seekOffset ?? 10)));
+    set('seekforward', (d) => seekBy(d.seekOffset ?? 10));
+    return () => {
+      (
+        [
+          'play',
+          'pause',
+          'previoustrack',
+          'nexttrack',
+          'seekbackward',
+          'seekforward',
+        ] as MediaSessionAction[]
+      ).forEach((t) => set(t, null));
+      ms.playbackState = 'none';
+    };
+  }, []);
+
   // Cleanup on unmount.
   useEffect(
     () => () => {
       playingRef.current = false;
       tokenRef.current++;
       stopAudioPrimitives();
+      if (audioRef.current) {
+        audioRef.current.removeAttribute('src');
+        audioRef.current = null;
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      for (const url of urlCacheRef.current.values()) URL.revokeObjectURL(url);
+      urlCacheRef.current.clear();
     },
     [stopAudioPrimitives],
   );
