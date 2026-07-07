@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLibraryStore } from '../store/libraryStore';
 import { useReviewStore } from '../store/reviewStore';
-import { countClipsForBook } from '../services/audioCache';
+import { countChunksForBook } from '../services/audioCache';
+import { buildChunks } from '../services/chunker';
 
 export function Library() {
   const books = useLibraryStore((s) => s.books);
@@ -15,7 +16,7 @@ export function Library() {
   useEffect(() => {
     let cancelled = false;
     void Promise.all(
-      books.map(async (b) => [b.id, await countClipsForBook(b.id).catch(() => 0)] as const),
+      books.map(async (b) => [b.id, await countChunksForBook(b.id).catch(() => 0)] as const),
     ).then((entries) => {
       if (!cancelled) setSavedCounts(Object.fromEntries(entries));
     });
@@ -59,7 +60,8 @@ export function Library() {
             const pct = b.sentences.length
               ? Math.round(((b.lastSentenceIdx + 1) / b.sentences.length) * 100)
               : 0;
-            const saved = Math.min(savedCounts[b.id] ?? 0, b.sentences.length);
+            const chunkTotal = buildChunks(b.sentences).length;
+            const saved = Math.min(savedCounts[b.id] ?? 0, chunkTotal);
             return (
               <li key={b.id} className="card">
                 <button
@@ -72,7 +74,7 @@ export function Library() {
                     <span>{pct}% 読了</span>
                     {saved > 0 && (
                       <span>
-                        🔊 {saved >= b.sentences.length ? '音声保存済み' : `音声 ${saved}/${b.sentences.length}`}
+                        🔊 {saved >= chunkTotal ? '音声保存済み' : `音声 ${saved}/${chunkTotal}`}
                       </span>
                     )}
                     {b.recap && <span>✅ ふりかえり済</span>}

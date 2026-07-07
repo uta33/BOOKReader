@@ -9,11 +9,13 @@ interface Props {
   mode: AudioMode;
   total: number;
   currentIdx: number;
+  /** Saved narration chunks / total chunks (audio is stored per chunk). */
   savedCount: number;
+  chunkTotal: number;
   onToggle: () => void;
   onSkipForward: () => void;
   onSkipBack: () => void;
-  /** Generate (persist) the current sentence's audio without playing it. */
+  /** Generate (persist) the current chunk's audio without playing it. */
   onGenerateCurrent: () => Promise<void>;
 }
 
@@ -37,6 +39,7 @@ export function PlayerBar({
   total,
   currentIdx,
   savedCount,
+  chunkTotal,
   onToggle,
   onSkipForward,
   onSkipBack,
@@ -86,7 +89,7 @@ export function PlayerBar({
         </span>
         <span className="player__mode" title="音声ソース">
           {modeLabel}
-          {savedCount > 0 ? `・保存 ${Math.min(savedCount, total)}/${total}` : ''}
+          {savedCount > 0 ? `・保存 ${Math.min(savedCount, chunkTotal)}/${chunkTotal}` : ''}
         </span>
       </div>
       <div className="player__controls">
@@ -118,8 +121,8 @@ export function PlayerBar({
           className="player__btn player__btn--gen"
           onClick={handleGenerate}
           disabled={genState === 'loading'}
-          aria-label="この文の音声だけ生成する（再生はしない）"
-          title="この文の音声だけ生成する（再生はしない）"
+          aria-label="この段落の音声だけ生成する（再生はしない）"
+          title="この段落の音声だけ生成する（再生はしない）"
         >
           {GEN_LABEL[genState]}
         </button>
