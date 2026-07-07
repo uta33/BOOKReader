@@ -4,6 +4,7 @@ import { useLibraryStore } from '../store/libraryStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { PlayerBar } from '../components/PlayerBar';
+import { buildObsidianExport, openUri } from '../services/obsidianExport';
 import type { Book } from '../types/book';
 
 const EMPTY_BOOK: Book = {
@@ -27,6 +28,7 @@ export function Reader() {
   const book = useLibraryStore((s) => s.books.find((b) => b.id === id));
   const updateBook = useLibraryStore((s) => s.updateBook);
   const fontScale = useSettingsStore((s) => s.fontScale);
+  const obsidianVault = useSettingsStore((s) => s.obsidianVault);
   const [showRecapCta, setShowRecapCta] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -103,6 +105,20 @@ export function Reader() {
     }
   };
 
+  // Create/refresh this book's note in Obsidian (recap + quiz + summary).
+  // Long notes travel via the clipboard (obsidian://new&clipboard=true).
+  const onObsidian = async () => {
+    setMenuOpen(false);
+    setSaveError(null);
+    try {
+      const exp = buildObsidianExport(book, obsidianVault || undefined);
+      if (exp.viaClipboard) await navigator.clipboard.writeText(exp.content);
+      openUri(exp.uri);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   return (
     <div className="page page--reader">
       <header className="appbar appbar--back">
@@ -144,6 +160,9 @@ export function Reader() {
                 disabled={busy}
               >
                 ⬇️ 音声データをダウンロード（MP3）
+              </button>
+              <button className="menu__item" role="menuitem" onClick={onObsidian}>
+                💎 Obsidianにノート作成
               </button>
             </div>
           </>

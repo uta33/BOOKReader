@@ -22,10 +22,12 @@ export function Settings() {
     speakingRate,
     pitch,
     fontScale,
+    obsidianVault,
     setVoice,
     setSpeedIdx,
     setPitch,
     setFontScale,
+    setObsidianVault,
   } = useSettingsStore();
   const bgmEnabled = useBgmStore((s) => s.enabled);
   const bgmVolume = useBgmStore((s) => s.volume);
@@ -221,6 +223,21 @@ export function Settings() {
             />
           </label>
         )}
+
+        <label className="field">
+          <span className="field__label">Obsidian Vault名（連携用・任意）</span>
+          <input
+            className="input"
+            type="text"
+            value={obsidianVault}
+            onChange={(e) => setObsidianVault(e.target.value)}
+            placeholder="未指定なら最後に開いたVaultに作成"
+          />
+          <p className="hint">
+            リーダーの⋯メニュー「Obsidianにノート作成」で、ふりかえり・クイズ・要約が
+            Vaultの「BOOKReader」フォルダにノートとして作成されます（Obsidianアプリが必要）。
+          </p>
+        </label>
 
         {storage && (
           <div className="field">

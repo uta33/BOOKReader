@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useLibraryStore } from '../store/libraryStore';
 import { useReviewStore } from '../store/reviewStore';
 import { useStatsStore } from '../store/statsStore';
+import { useSettingsStore } from '../store/settingsStore';
+import { buildObsidianExport, openUri } from '../services/obsidianExport';
 
 export function Recap() {
   const { id } = useParams<{ id: string }>();
@@ -11,6 +13,7 @@ export function Recap() {
   const updateBook = useLibraryStore((s) => s.updateBook);
   const addFromRecap = useReviewStore((s) => s.addFromRecap);
   const addRecap = useStatsStore((s) => s.addRecap);
+  const obsidianVault = useSettingsStore((s) => s.obsidianVault);
 
   const [summary, setSummary] = useState(book?.recap ?? '');
   const [saved, setSaved] = useState(false);
@@ -79,6 +82,19 @@ export function Recap() {
             <div className="alert__actions">
               <button className="btn btn--ghost" onClick={() => navigate('/review')}>
                 復習へ
+              </button>
+              <button
+                className="btn btn--ghost"
+                onClick={async () => {
+                  // The freshly saved recap is already on `book` (store updated).
+                  const exp = buildObsidianExport(book, obsidianVault || undefined);
+                  if (exp.viaClipboard) {
+                    await navigator.clipboard.writeText(exp.content).catch(() => {});
+                  }
+                  openUri(exp.uri);
+                }}
+              >
+                💎 Obsidianへ
               </button>
               <button className="btn btn--ghost" onClick={() => navigate('/')}>
                 ホームへ
