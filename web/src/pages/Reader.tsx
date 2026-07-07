@@ -28,6 +28,7 @@ export function Reader() {
   const updateBook = useLibraryStore((s) => s.updateBook);
   const fontScale = useSettingsStore((s) => s.fontScale);
   const [showRecapCta, setShowRecapCta] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Remember which book was opened last so Home's "continue" card picks it.
   useEffect(() => {
@@ -70,11 +71,33 @@ export function Reader() {
   }
 
   const allSaved = player.savedCount >= player.chunkTotal && player.chunkTotal > 0;
+  const busy = player.saveProgress !== null;
 
   const onSaveAll = async () => {
+    setMenuOpen(false);
     setSaveError(null);
     try {
       await player.saveAll();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  // Assemble the narration into one MP3 and hand it to the browser as a
+  // download (object URL + anchor click works in mobile Safari/Chrome).
+  const onDownloadMp3 = async () => {
+    setMenuOpen(false);
+    setSaveError(null);
+    try {
+      const blob = await player.exportMp3();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${book.title}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : String(e));
     }
@@ -88,21 +111,50 @@ export function Reader() {
         </button>
         <h1 className="appbar__title appbar__title--ellipsis">{book.title}</h1>
         <button
-          className="appbar__action"
-          onClick={onSaveAll}
-          disabled={player.saveProgress !== null || allSaved}
-          title="全文の音声を端末に保存（オフライン再生用）"
+          className="appbar__action appbar__action--menu"
+          onClick={() => setMenuOpen((o) => !o)}
+          aria-label="オプションメニュー"
+          aria-expanded={menuOpen}
         >
-          {player.saveProgress
-            ? `保存中 ${player.saveProgress.done}/${player.saveProgress.total}`
-            : allSaved
-              ? '音声保存済み✓'
-              : '音声を保存'}
+          ⋯
         </button>
-        <button className="appbar__action" onClick={() => navigate(`/recap/${book.id}`)}>
-          ふりかえり
-        </button>
+        {menuOpen && (
+          <>
+            <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
+            <div className="menu" role="menu">
+              <button
+                className="menu__item"
+                role="menuitem"
+                onClick={() => navigate(`/recap/${book.id}`)}
+              >
+                ✍️ ふりかえりを書く
+              </button>
+              <button
+                className="menu__item"
+                role="menuitem"
+                onClick={onSaveAll}
+                disabled={busy || allSaved}
+              >
+                💾 {allSaved ? '音声保存済み ✓' : '音声を保存（オフライン再生用）'}
+              </button>
+              <button
+                className="menu__item"
+                role="menuitem"
+                onClick={onDownloadMp3}
+                disabled={busy}
+              >
+                ⬇️ 音声データをダウンロード（MP3）
+              </button>
+            </div>
+          </>
+        )}
       </header>
+
+      {busy && (
+        <div className="banner">
+          🔊 音声を準備中 {player.saveProgress!.done}/{player.saveProgress!.total}…
+        </div>
+      )}
 
       {chapters.length > 0 && (
         <div className="chapters">

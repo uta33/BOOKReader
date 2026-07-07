@@ -69,6 +69,8 @@ interface PlayerApi {
   saveAll: () => Promise<void>;
   /** Generate & persist the current chunk only — does not play it. */
   generateCurrent: () => Promise<void>;
+  /** Assemble the whole book's narration as one MP3 blob (generates missing chunks). */
+  exportMp3: () => Promise<Blob>;
 }
 
 /**
@@ -476,6 +478,39 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
     }
   }, [book.id, chunkTotal, ensureChunkClip]);
 
+  // Assemble the whole narration as one MP3 for download. MP3 frames can be
+  // concatenated directly, so the persisted chunks (generating any that are
+  // missing, with the same progress reporting as saveAll) become one file.
+  const exportMp3 = useCallback(async (): Promise<Blob> => {
+    if (savingRef.current || chunkTotal === 0) {
+      throw new Error('音声の準備がすでに実行中です。完了後にお試しください。');
+    }
+    if (!ttsAvailableRef.current) {
+      throw new Error('高品質音声（Google TTS）が未設定のためダウンロードできません。');
+    }
+    savingRef.current = true;
+    setSaveProgress({ done: 0, total: chunkTotal });
+    try {
+      const buffers: Uint8Array[] = [];
+      for (let i = 0; i < chunkTotal; i++) {
+        const clip = await ensureChunkClip(i);
+        if (clip === null) {
+          throw new Error('高品質音声（Google TTS）が未設定のためダウンロードできません。');
+        }
+        const bin = atob(clip.audio);
+        const bytes = new Uint8Array(bin.length);
+        for (let j = 0; j < bin.length; j++) bytes[j] = bin.charCodeAt(j);
+        buffers.push(bytes);
+        setSaveProgress({ done: i + 1, total: chunkTotal });
+      }
+      setSavedCount(await countChunksForBook(book.id));
+      return new Blob(buffers as BlobPart[], { type: 'audio/mpeg' });
+    } finally {
+      savingRef.current = false;
+      setSaveProgress(null);
+    }
+  }, [book.id, chunkTotal, ensureChunkClip]);
+
   // Explicit "generate the current chunk only" — prepares/persists it without
   // starting playback (pre-warming, or confirming Google TTS is configured).
   const generateCurrent = useCallback(async () => {
@@ -512,5 +547,6 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
     jumpTo,
     saveAll,
     generateCurrent,
+    exportMp3,
   };
 }
