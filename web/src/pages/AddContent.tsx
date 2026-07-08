@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { generateQuiz, generateSummaryStream } from '../services/api';
 import { parseGeneratedScript } from '../services/scriptParser';
 import { buildSentences } from '../services/sentenceSplitter';
+import { extractPdfText } from '../services/pdfExtract';
 import { useLibraryStore } from '../store/libraryStore';
 import type { Book, QuizItem } from '../types/book';
 
@@ -15,6 +16,7 @@ export function AddContent() {
   const [scriptTitle, setScriptTitle] = useState('');
   const [scriptText, setScriptText] = useState('');
   const [fileName, setFileName] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [liveText, setLiveText] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -77,8 +79,18 @@ export function AddContent() {
   const onFile = async (file: File | undefined) => {
     if (!file) return;
     setError(null);
+    const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
     try {
-      const text = await file.text();
+      let text: string;
+      if (isPdf) {
+        // Extracted in the browser (PDF.js, lazy-loaded) — nothing uploaded.
+        setExtracting('PDFからテキストを抽出しています…');
+        text = await extractPdfText(file, (page, total) =>
+          setExtracting(`PDFからテキストを抽出しています… ${page}/${total}ページ`),
+        );
+      } else {
+        text = await file.text();
+      }
       if (!text.trim()) {
         setError('ファイルが空です。');
         return;
@@ -86,17 +98,23 @@ export function AddContent() {
       setScriptText(text);
       setFileName(file.name);
       if (!scriptTitle.trim()) {
-        setScriptTitle(file.name.replace(/\.(md|markdown|txt)$/i, ''));
+        setScriptTitle(file.name.replace(/\.(md|markdown|txt|pdf)$/i, ''));
       }
-    } catch {
-      setError('ファイルの読み込みに失敗しました。');
+    } catch (e) {
+      setError(
+        e instanceof Error && e.message
+          ? e.message
+          : 'ファイルの読み込みに失敗しました。',
+      );
+    } finally {
+      setExtracting(null);
     }
   };
 
   const onImport = async () => {
     const text = scriptText.trim();
     if (!text) {
-      setError('mdファイルを選択してください。');
+      setError('ファイルを選択してください。');
       return;
     }
     setError(null);
@@ -202,18 +220,21 @@ export function AddContent() {
           </label>
 
           <div className="field">
-            <span className="field__label">要約台本ファイル（.md / .txt）</span>
-            <label className={`filepick${loading ? ' is-disabled' : ''}`}>
+            <span className="field__label">要約台本ファイル（.md / .txt / .pdf）</span>
+            <label className={`filepick${loading || extracting ? ' is-disabled' : ''}`}>
               <input
                 type="file"
-                accept=".md,.markdown,.txt,text/markdown,text/plain"
+                accept=".md,.markdown,.txt,.pdf,text/markdown,text/plain,application/pdf"
                 className="filepick__input"
-                disabled={loading}
-                onChange={(e) => onFile(e.target.files?.[0])}
+                disabled={loading || extracting !== null}
+                onChange={(e) => {
+                  void onFile(e.target.files?.[0]);
+                  e.target.value = '';
+                }}
               />
               <span className="filepick__icon">📄</span>
               <span className="filepick__text">
-                {fileName ?? 'タップして .md ファイルを選択'}
+                {extracting ?? fileName ?? 'タップして .md / .pdf ファイルを選択'}
               </span>
             </label>
           </div>
@@ -230,6 +251,8 @@ export function AddContent() {
           </button>
           <p className="hint">
             Markdownの見出し（#）や箇条書き・強調記号は読み上げ用に自動で整えます。
+            PDFは端末内でテキストを抽出します（文字が埋め込まれたPDFのみ。
+            画像スキャンのPDFは非対応です）。
           </p>
         </div>
       )}
