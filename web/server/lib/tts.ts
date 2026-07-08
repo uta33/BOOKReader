@@ -50,9 +50,11 @@ function escapeXml(s: string): string {
  * Speed is always 1.0 here — playback rate is applied client-side.
  */
 export async function synthesizeChunk(input: ChunkTTSInput): Promise<ChunkTTSResult> {
+  // Punctuation-only fragments (ellipsis lines, dangling 」 from quote
+  // splitting) carry nothing to speak — drop them from the audio.
   const parts = (input.parts ?? [])
     .map((p) => ({ id: String(p.id ?? ''), text: sanitizeForSpeech(p.text ?? '') }))
-    .filter((p) => p.id && p.text);
+    .filter((p) => p.id && p.text && hasSpeech(p.text));
   if (parts.length === 0) throw new Error('parts are required');
 
   const apiKey = process.env.GOOGLE_TTS_API_KEY;
@@ -64,7 +66,7 @@ export async function synthesizeChunk(input: ChunkTTSInput): Promise<ChunkTTSRes
   const chirp = isChirp(input.voiceName);
   const body = chirp
     ? {
-        input: { text: parts.map((p) => p.text).join('') },
+        input: { text: parts.map((p) => ensureSentenceEnd(p.text)).join('') },
         voice: { languageCode: 'ja-JP', name: input.voiceName },
         audioConfig: { audioEncoding: 'MP3' },
       }
@@ -118,6 +120,22 @@ export function sanitizeForSpeech(raw: string): string {
 /** Chirp3-HD voices reject SSML, pitch and speakingRate parameters. */
 function isChirp(voiceName: string): boolean {
   return /Chirp3/i.test(voiceName);
+}
+
+/** Does the text contain anything speakable (kana/kanji/letters/digits)? */
+function hasSpeech(text: string): boolean {
+  return /[0-9A-Za-zぁ-んァ-ヶ一-龯ｦ-ﾟＡ-Ｚａ-ｚ０-９]/.test(text);
+}
+
+/**
+ * Guarantee the fragment reads as a full sentence to the TTS segmenter.
+ * The splitter emits comma-bounded fragments (long-sentence subdivision) and
+ * quote-only lines; joined bare, they merge into one endless "sentence" that
+ * Chirp3-HD rejects with INVALID_ARGUMENT ("sentences that are too long").
+ */
+function ensureSentenceEnd(text: string): string {
+  if (/[。．！？!?]$/.test(text)) return text;
+  return text.replace(/[、，,]$/, '') + '。';
 }
 
 export async function synthesize(input: TTSInput): Promise<TTSResult> {
