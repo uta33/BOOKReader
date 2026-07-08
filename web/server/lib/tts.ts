@@ -58,18 +58,28 @@ export async function synthesizeChunk(input: ChunkTTSInput): Promise<ChunkTTSRes
   const apiKey = process.env.GOOGLE_TTS_API_KEY;
   if (!apiKey) return { fallback: true };
 
-  const ssml = `<speak>${parts
-    .map((p) => `<mark name="${escapeXml(p.id)}"/>${escapeXml(p.text)}`)
-    .join('')}</speak>`;
+  // Chirp3-HD rejects SSML (so no mark timepoints), pitch and speakingRate.
+  // Send plain text on v1; the client estimates sentence positions from
+  // character offsets instead of marks.
+  const chirp = isChirp(input.voiceName);
+  const body = chirp
+    ? {
+        input: { text: parts.map((p) => p.text).join('') },
+        voice: { languageCode: 'ja-JP', name: input.voiceName },
+        audioConfig: { audioEncoding: 'MP3' },
+      }
+    : {
+        input: {
+          ssml: `<speak>${parts
+            .map((p) => `<mark name="${escapeXml(p.id)}"/>${escapeXml(p.text)}`)
+            .join('')}</speak>`,
+        },
+        voice: { languageCode: 'ja-JP', name: input.voiceName },
+        audioConfig: { audioEncoding: 'MP3', speakingRate: 1.0, pitch: input.pitch },
+        enableTimePointing: ['SSML_MARK'],
+      };
 
-  const body = {
-    input: { ssml },
-    voice: { languageCode: 'ja-JP', name: input.voiceName },
-    audioConfig: { audioEncoding: 'MP3', speakingRate: 1.0, pitch: input.pitch },
-    enableTimePointing: ['SSML_MARK'],
-  };
-
-  const res = await fetch(`${BETA_ENDPOINT}?key=${apiKey}`, {
+  const res = await fetch(`${chirp ? ENDPOINT : BETA_ENDPOINT}?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -79,7 +89,10 @@ export async function synthesizeChunk(input: ChunkTTSInput): Promise<ChunkTTSRes
     throw new Error(`Google TTS error: ${res.status} ${err}`);
   }
   const json = (await res.json()) as { audioContent: string; timepoints?: Timepoint[] };
-  return { audioContent: json.audioContent, timepoints: json.timepoints ?? [], fallback: false };
+  // Chirp (plain-text) clips carry no marks by definition — an empty list is
+  // the client's signal to use character-proportional highlight sync.
+  const timepoints = chirp ? [] : (json.timepoints ?? []);
+  return { audioContent: json.audioContent, timepoints, fallback: false };
 }
 
 /**
@@ -102,6 +115,11 @@ export function sanitizeForSpeech(raw: string): string {
  * Returns { fallback: true } when no key is configured so the browser can fall
  * back to the built-in SpeechSynthesis API (zero-config audio).
  */
+/** Chirp3-HD voices reject SSML, pitch and speakingRate parameters. */
+function isChirp(voiceName: string): boolean {
+  return /Chirp3/i.test(voiceName);
+}
+
 export async function synthesize(input: TTSInput): Promise<TTSResult> {
   const text = sanitizeForSpeech(input.text ?? '');
   if (!text) throw new Error('text is required');
@@ -112,11 +130,13 @@ export async function synthesize(input: TTSInput): Promise<TTSResult> {
   const body = {
     input: { text },
     voice: { languageCode: 'ja-JP', name: input.voiceName },
-    audioConfig: {
-      audioEncoding: 'MP3',
-      speakingRate: input.speakingRate,
-      pitch: input.pitch,
-    },
+    audioConfig: isChirp(input.voiceName)
+      ? { audioEncoding: 'MP3' }
+      : {
+          audioEncoding: 'MP3',
+          speakingRate: input.speakingRate,
+          pitch: input.pitch,
+        },
   };
 
   const res = await fetch(`${ENDPOINT}?key=${apiKey}`, {

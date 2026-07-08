@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { SPEED_STEPS } from '../constants/speeds';
-import { QUALITY_LABEL, VOICES, pickVoice, voiceQualityOf } from '../constants/voices';
+import { QUALITIES, QUALITY_LABEL, VOICES, pickVoice, voiceQualityOf } from '../constants/voices';
 import { useSettingsStore } from '../store/settingsStore';
 import type { AudioMode } from '../hooks/useAudioPlayer';
 
@@ -53,10 +53,10 @@ export function PlayerBar({
   const quality = voiceQualityOf(voiceName);
   const modeLabel = mode === 'tts' ? `${QUALITY_LABEL[quality]}音声` : MODE_LABEL[mode];
 
-  // Toggle 高音質⇄標準 keeping the current voice's gender; shares the
-  // settings store, so the Settings page stays in sync automatically.
+  // Cycle 最高音質→高音質→標準 keeping the current voice's gender; shares
+  // the settings store, so the Settings page stays in sync automatically.
   const toggleQuality = () => {
-    const next = quality === 'neural2' ? 'standard' : 'neural2';
+    const next = QUALITIES[(QUALITIES.indexOf(quality) + 1) % QUALITIES.length];
     setVoice(pickVoice(next, VOICES.find((v) => v.name === voiceName)?.gender));
   };
 

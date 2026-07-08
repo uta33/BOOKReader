@@ -1,4 +1,11 @@
-import { buildChunks, chunkIndexFor, CHUNK_CHAR_LIMIT } from '../../src/services/chunker.js';
+import {
+  buildChunks,
+  chunkIndexFor,
+  CHUNK_CHAR_LIMIT,
+  estimatedStartSeconds,
+  sentenceIndexAtTimeEstimate,
+} from '../../src/services/chunker.js';
+import { pickVoice, voiceQualityOf } from '../../src/constants/voices.js';
 import { synthesizeChunk } from '../../server/lib/tts.js';
 import type { Sentence } from '../../src/types/book.js';
 
@@ -95,6 +102,46 @@ try {
   threw = true;
 }
 ok(threw, 'empty parts → throws');
+
+// --- Chirp3-HD (最高音質): plain-text request, no SSML/pitch/rate, v1 ---
+process.env.GOOGLE_TTS_API_KEY = 'test-key';
+captured = null;
+const chirpRes = await synthesizeChunk({
+  parts: [
+    { id: 's0', text: '一文目です。' },
+    { id: 's1', text: '二文目です。' },
+  ],
+  voiceName: 'ja-JP-Chirp3-HD-Aoede',
+  pitch: 5,
+});
+ok(captured !== null && captured.url.includes('/v1/') && !captured.url.includes('v1beta1'), 'chirp uses v1 endpoint');
+ok(captured!.body.input.text === '一文目です。二文目です。' && !captured!.body.input.ssml, 'chirp sends plain joined text, no SSML');
+ok(captured!.body.enableTimePointing === undefined, 'chirp: no timepointing requested');
+ok(
+  captured!.body.audioConfig.pitch === undefined && captured!.body.audioConfig.speakingRate === undefined,
+  'chirp: pitch/speakingRate omitted',
+);
+ok(!chirpRes.fallback && chirpRes.timepoints.length === 0, 'chirp result has empty timepoints');
+delete process.env.GOOGLE_TTS_API_KEY;
+
+// --- character-proportional estimation (Chirp3 highlight fallback) ---
+const estChunk = buildChunks([
+  mk(0, 'あ'.repeat(10)),
+  mk(1, 'い'.repeat(20)),
+  mk(2, 'う'.repeat(10)),
+])[0];
+ok(estimatedStartSeconds(estChunk, 0, 8) === 0, 'estimate: first sentence starts at 0');
+ok(estimatedStartSeconds(estChunk, 1, 8) === 2, 'estimate: 10/40 chars → 2s of 8s');
+ok(estimatedStartSeconds(estChunk, 2, 8) === 6, 'estimate: 30/40 chars → 6s of 8s');
+ok(sentenceIndexAtTimeEstimate(estChunk, 1, 8) === 0, 'estimate index @1s → s0');
+ok(sentenceIndexAtTimeEstimate(estChunk, 3, 8) === 1, 'estimate index @3s → s1');
+ok(sentenceIndexAtTimeEstimate(estChunk, 7.5, 8) === 2, 'estimate index @7.5s → s2');
+ok(sentenceIndexAtTimeEstimate(estChunk, 0, NaN) === 0, 'estimate tolerates unknown duration');
+
+// --- voice tiers ---
+ok(voiceQualityOf('ja-JP-Chirp3-HD-Charon') === 'chirp3', 'chirp voice detected as chirp3 tier');
+ok(pickVoice('chirp3', 'male') === 'ja-JP-Chirp3-HD-Charon', 'pickVoice chirp3 keeps gender');
+ok(pickVoice('chirp3', 'female') === 'ja-JP-Chirp3-HD-Aoede', 'pickVoice chirp3 female default');
 
 console.log(failures === 0 ? '\nALL CHUNK UNIT CHECKS PASSED ✅' : `\n${failures} FAILED ❌`);
 process.exit(failures === 0 ? 0 : 1);

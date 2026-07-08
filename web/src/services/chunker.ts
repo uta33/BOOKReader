@@ -51,3 +51,37 @@ export function buildChunks(sentences: Sentence[]): Chunk[] {
 export function chunkIndexFor(chunks: Chunk[], sentenceIdx: number): number {
   return chunks.findIndex((c) => sentenceIdx >= c.startIdx && sentenceIdx <= c.endIdx);
 }
+
+// Character-proportional position estimates — the fallback used when the TTS
+// voice can't return SSML-mark timepoints (Chirp3-HD). Japanese narration
+// pace is close to uniform per character, so this tracks well in practice.
+
+/** Estimated start time (s) of a sentence within its chunk's audio. */
+export function estimatedStartSeconds(
+  chunk: Chunk,
+  globalIdx: number,
+  durationSeconds: number,
+): number {
+  const total = chunk.sentences.reduce((n, s) => n + s.text.length, 0) || 1;
+  const before = chunk.sentences
+    .slice(0, Math.max(0, globalIdx - chunk.startIdx))
+    .reduce((n, s) => n + s.text.length, 0);
+  return (before / total) * durationSeconds;
+}
+
+/** Estimated global sentence index at a playback position within a chunk. */
+export function sentenceIndexAtTimeEstimate(
+  chunk: Chunk,
+  timeSeconds: number,
+  durationSeconds: number,
+): number {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return chunk.startIdx;
+  const total = chunk.sentences.reduce((n, s) => n + s.text.length, 0) || 1;
+  const target = (timeSeconds / durationSeconds) * total;
+  let acc = 0;
+  for (let i = 0; i < chunk.sentences.length; i++) {
+    acc += chunk.sentences[i].text.length;
+    if (target < acc) return chunk.startIdx + i;
+  }
+  return chunk.endIdx;
+}

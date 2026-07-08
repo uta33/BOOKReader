@@ -52,12 +52,15 @@ try {
   await page.goto(`${BASE}/settings`, { waitUntil: 'networkidle' });
   const stdBtn = page.locator('.segmented__btn', { hasText: '標準' }).first();
   check((await stdBtn.getAttribute('class')).includes('is-active'), 'Settings 音質 shows 標準 active after reader toggle');
-  // Toggle back to 高音質 from the reader.
+  // Cycle continues 標準 → 最高音質(Chirp3) → 高音質 from the reader.
   const bookId = (await readStore('bookreader_library')).books[0].id;
   await page.goto(`${BASE}/reader/${bookId}`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: '音質切り替え' }).click();
   settings = await readStore('bookreader_settings');
-  check(settings.voiceName === 'ja-JP-Neural2-B', 'toggle back restores Neural2 female voice');
+  check(settings.voiceName === 'ja-JP-Chirp3-HD-Aoede', `cycle reaches 最高音質 female (got ${settings.voiceName})`);
+  await page.getByRole('button', { name: '音質切り替え' }).click();
+  settings = await readStore('bookreader_settings');
+  check(settings.voiceName === 'ja-JP-Neural2-B', 'cycle wraps back to Neural2 female voice');
 
   // 4. Listening time is recorded (play ~2.5s then pause).
   await page.getByRole('button', { name: '再生', exact: true }).click();
