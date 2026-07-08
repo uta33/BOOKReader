@@ -122,6 +122,43 @@ ok(
   'chirp: pitch/speakingRate omitted',
 );
 ok(!chirpRes.fallback && chirpRes.timepoints.length === 0, 'chirp result has empty timepoints');
+
+// Conversational scripts: comma-bounded fragments and quote/ellipsis-only
+// lines must not merge into one endless "sentence" (Chirp3 rejects those).
+captured = null;
+await synthesizeChunk({
+  parts: [
+    { id: 's0', text: 'だから長い断片、' },
+    { id: 's1', text: '句点なしの断片' },
+    { id: 's2', text: '…' },
+    { id: 's3', text: '」' },
+    { id: 's4', text: '「うわ、出た。' },
+  ],
+  voiceName: 'ja-JP-Chirp3-HD-Aoede',
+  pitch: 0,
+});
+ok(
+  captured!.body.input.text === 'だから長い断片。句点なしの断片。「うわ、出た。',
+  'chirp: fragments get sentence ends; punctuation-only parts dropped',
+  captured!.body.input.text,
+);
+
+// SSML path also drops punctuation-only parts (no mark, nothing spoken).
+captured = null;
+await synthesizeChunk({
+  parts: [
+    { id: 's0', text: '…' },
+    { id: 's1', text: '本文です。' },
+  ],
+  voiceName: 'ja-JP-Neural2-B',
+  pitch: 0,
+});
+ok(
+  !captured!.body.input.ssml.includes('"s0"') &&
+    captured!.body.input.ssml.includes('<mark name="s1"/>本文です。'),
+  'ssml: punctuation-only part carries no mark',
+  captured!.body.input.ssml,
+);
 delete process.env.GOOGLE_TTS_API_KEY;
 
 // --- character-proportional estimation (Chirp3 highlight fallback) ---
