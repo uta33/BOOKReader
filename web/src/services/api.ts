@@ -74,6 +74,26 @@ export async function generateQuiz(script: string): Promise<QuizResponse> {
   return res.json();
 }
 
+/** OCR a batch of page images (base64 JPEG). Server-side Cloud Vision. */
+export async function ocrPages(images: string[]): Promise<string[]> {
+  const res = await fetch('/api/ocr', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ images }),
+  });
+  if (!res.ok) {
+    throw new Error(await readError(res, `文字認識に失敗しました (${res.status})`));
+  }
+  const json = (await res.json()) as { texts: string[]; fallback: false } | { fallback: true };
+  if (json.fallback) {
+    throw new Error(
+      'スキャンPDFの文字認識（OCR）にはGoogle Cloud Visionが必要です。' +
+        'TTSと同じAPIキーで「Cloud Vision API」を有効化してください。',
+    );
+  }
+  return json.texts;
+}
+
 export type TTSResponse = { audioContent: string; fallback: false } | { fallback: true };
 
 export interface Timepoint {

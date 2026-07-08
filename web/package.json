@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "start:api": "tsx server/index.ts",
-    "test:unit": "tsx tests/unit/smooth.test.mts && tsx tests/unit/chunks.test.mts && tsx tests/unit/obsidian.test.mts && tsx tests/unit/backup.test.mts",
+    "test:unit": "tsx tests/unit/smooth.test.mts && tsx tests/unit/chunks.test.mts && tsx tests/unit/obsidian.test.mts && tsx tests/unit/backup.test.mts && tsx tests/unit/ocr.test.mts",
     "test:e2e": "node tests/e2e/run.mjs",
     "test": "npm run test:unit && npm run test:e2e"
   },

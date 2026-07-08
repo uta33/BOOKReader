@@ -2,9 +2,11 @@ import express from 'express';
 import { generateSummaryStream } from './lib/summary.ts';
 import { generateQuiz } from './lib/quiz.ts';
 import { synthesize, synthesizeChunk } from './lib/tts.ts';
+import { ocrImages } from './lib/ocr.ts';
 
 const app = express();
-app.use(express.json({ limit: '1mb' }));
+// OCR batches carry a few page images as base64 — allow larger bodies.
+app.use(express.json({ limit: '10mb' }));
 
 app.get('/api/health', (_req, res) => {
   res.json({
@@ -58,6 +60,15 @@ app.post('/api/tts', async (req, res) => {
           speakingRate: speakingRate ?? 1.0,
           pitch: pitch ?? 0.0,
         });
+    res.json(result);
+  } catch (e) {
+    res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.post('/api/ocr', async (req, res) => {
+  try {
+    const result = await ocrImages(req.body?.images ?? []);
     res.json(result);
   } catch (e) {
     res.status(400).json({ error: e instanceof Error ? e.message : String(e) });
