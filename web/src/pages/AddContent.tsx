@@ -83,10 +83,15 @@ export function AddContent() {
     try {
       let text: string;
       if (isPdf) {
-        // Extracted in the browser (PDF.js, lazy-loaded) — nothing uploaded.
+        // Text layer extracted in the browser; scanned PDFs fall back to
+        // page-image OCR (server-side Cloud Vision, handles 縦書き).
         setExtracting('PDFからテキストを抽出しています…');
-        text = await extractPdfText(file, (page, total) =>
-          setExtracting(`PDFからテキストを抽出しています… ${page}/${total}ページ`),
+        text = await extractPdfText(file, ({ phase, page, total }) =>
+          setExtracting(
+            phase === 'ocr'
+              ? `スキャンPDFを文字認識（OCR）中… ${page}/${total}ページ`
+              : `PDFからテキストを抽出しています… ${page}/${total}ページ`,
+          ),
         );
       } else {
         text = await file.text();
@@ -251,8 +256,8 @@ export function AddContent() {
           </button>
           <p className="hint">
             Markdownの見出し（#）や箇条書き・強調記号は読み上げ用に自動で整えます。
-            PDFは端末内でテキストを抽出します（文字が埋め込まれたPDFのみ。
-            画像スキャンのPDFは非対応です）。
+            PDFは端末内でテキストを抽出し、スキャンPDF（縦書きの書籍含む）は
+            自動で文字認識（OCR）に切り替わります。
           </p>
         </div>
       )}
