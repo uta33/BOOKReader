@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Book } from '../types/book';
 import { synthesizeChunk } from '../services/api';
-import { buildChunks, chunkIndexFor, type Chunk } from '../services/chunker';
+import {
+  buildChunks,
+  chunkIndexFor,
+  estimatedStartSeconds,
+  sentenceIndexAtTimeEstimate,
+  type Chunk,
+} from '../services/chunker';
 import {
   chunkKey,
   countChunksForBook,
@@ -258,9 +264,16 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
     [book.id, chunks],
   );
 
-  /** Global sentence index at a playback position within a chunk. */
+  /**
+   * Global sentence index at a playback position within a chunk. Uses SSML
+   * mark timepoints when available; Chirp3-HD clips carry none, so fall back
+   * to the character-proportional estimate (needs the clip duration).
+   */
   const sentenceAtTime = useCallback(
-    (chunk: Chunk, clip: ChunkClip, t: number): number => {
+    (chunk: Chunk, clip: ChunkClip, t: number, duration: number): number => {
+      if (clip.timepoints.length === 0) {
+        return sentenceIndexAtTimeEstimate(chunk, t, duration);
+      }
       let idx = chunk.startIdx;
       for (const tp of clip.timepoints) {
         if (tp.timeSeconds > t + 0.05) break;
@@ -270,6 +283,19 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
       return idx;
     },
     [idToGlobal],
+  );
+
+  /** Start seconds of a sentence in its chunk (mark or estimate), or null. */
+  const sentenceStartSeconds = useCallback(
+    (chunk: Chunk, clip: ChunkClip, globalIdx: number, duration: number): number | null => {
+      const tp = clip.timepoints.find((t) => t.markName === sentences[globalIdx]?.id);
+      if (tp) return tp.timeSeconds;
+      if (clip.timepoints.length === 0 && Number.isFinite(duration) && duration > 0) {
+        return estimatedStartSeconds(chunk, globalIdx, duration);
+      }
+      return null;
+    },
+    [sentences],
   );
 
   // ---- Fallback machine (no Google TTS): per-sentence speech / timed. ----
@@ -379,22 +405,16 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
       // Seek to a sentence inside the chunk (resume / tap-to-jump). When the
       // element still holds this chunk at that very sentence (pause → play),
       // resume mid-sentence instead of rewinding to the sentence start.
+      // Estimated positions need the duration, so seeking waits for metadata.
       if (seekSentenceIdx !== undefined) {
-        const alreadyThere =
-          sameSrc && sentenceAtTime(chunk, clip, audio.currentTime) === seekSentenceIdx;
-        const tp = clip.timepoints.find((t) => t.markName === sentences[seekSentenceIdx]?.id);
-        if (!alreadyThere && tp) {
-          const seekTo = tp.timeSeconds;
-          if (audio.readyState >= 1) audio.currentTime = seekTo;
-          else
-            audio.addEventListener(
-              'loadedmetadata',
-              () => {
-                audio.currentTime = seekTo;
-              },
-              { once: true },
-            );
-        }
+        const applySeek = () => {
+          if (sentenceAtTime(chunk, clip, audio.currentTime, audio.duration) === seekSentenceIdx)
+            return;
+          const seekTo = sentenceStartSeconds(chunk, clip, seekSentenceIdx, audio.duration);
+          if (seekTo !== null) audio.currentTime = seekTo;
+        };
+        if (audio.readyState >= 1) applySeek();
+        else audio.addEventListener('loadedmetadata', applySeek, { once: true });
       } else if (!sameSrc) {
         // Fresh chunk starts at its head.
         if (audio.readyState >= 1) audio.currentTime = 0;
@@ -402,7 +422,7 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
 
       audio.ontimeupdate = () => {
         if (token !== tokenRef.current) return;
-        const gi = sentenceAtTime(chunk, clip, audio.currentTime);
+        const gi = sentenceAtTime(chunk, clip, audio.currentTime, audio.duration);
         if (gi !== idxRef.current) setIdx(gi);
         updatePositionState();
       };
@@ -426,12 +446,12 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
     [
       book.id,
       chunks,
-      sentences,
       ensureChunkClip,
       stopAudioPrimitives,
       fallbackPlay,
       prepareNextChunk,
       sentenceAtTime,
+      sentenceStartSeconds,
       setIdx,
       onReachedEnd,
       getAudioEl,
@@ -469,17 +489,20 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
       // Seek within the currently playing chunk without reloading it.
       const playing = playingChunkRef.current;
       if (playing && playing.ci === ci && audioRef.current) {
-        const tp = playing.clip.timepoints.find(
-          (t) => t.markName === sentences[clamped]?.id,
+        const seekTo = sentenceStartSeconds(
+          chunks[ci],
+          playing.clip,
+          clamped,
+          audioRef.current.duration,
         );
-        if (tp) {
-          audioRef.current.currentTime = tp.timeSeconds;
+        if (seekTo !== null) {
+          audioRef.current.currentTime = seekTo;
           return;
         }
       }
       void playChunk(ci, clamped);
     },
-    [total, setIdx, chunks, sentences, playChunk],
+    [total, setIdx, chunks, sentenceStartSeconds, playChunk],
   );
 
   const skipForward = useCallback(() => jumpTo(idxRef.current + 1), [jumpTo]);

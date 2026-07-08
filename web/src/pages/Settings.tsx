@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   VOICES,
   PREVIEW_TEXT,
+  QUALITIES,
   QUALITY_LABEL,
   pickVoice,
   voiceQualityOf,
@@ -144,7 +145,7 @@ export function Settings() {
         <div className="field">
           <span className="field__label">音質</span>
           <div className="segmented">
-            {(['neural2', 'standard'] as const).map((q) => (
+            {QUALITIES.map((q) => (
               <button
                 key={q}
                 className={`segmented__btn${quality === q ? ' is-active' : ''}`}
@@ -155,8 +156,9 @@ export function Settings() {
             ))}
           </div>
           <p className="hint">
-            高音質（Neural2）はより自然な読み上げです。どちらもGoogle TTS（要APIキー）で、
-            未設定時はブラウザ内蔵音声になります。
+            最高音質（Chirp3 HD）は最も自然な読み上げです（利用料は高音質の約2倍、
+            ピッチ調整は非対応で、文ハイライトは推定同期になります）。
+            いずれもGoogle TTS（要APIキー）で、未設定時はブラウザ内蔵音声になります。
           </p>
         </div>
 
