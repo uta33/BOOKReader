@@ -18,6 +18,15 @@ export interface ExtractProgress {
   total: number;
 }
 
+export interface ExtractOptions {
+  /**
+   * Skip the text layer and OCR every page. For PDFs whose embedded text is
+   * garbage (mojibake, scrambled vertical reading order) yet plentiful
+   * enough that the automatic scanned-PDF detection doesn't kick in.
+   */
+  forceOcr?: boolean;
+}
+
 /** Below this many characters per page on average, treat as a scanned PDF. */
 const MIN_CHARS_PER_PAGE = 20;
 
@@ -68,6 +77,7 @@ export function assembleOcrText(pageTexts: string[]): string {
 export async function extractPdfText(
   file: File,
   onProgress?: (info: ExtractProgress) => void,
+  { forceOcr = false }: ExtractOptions = {},
 ): Promise<string> {
   // The legacy build ships its own polyfills (main thread AND worker) —
   // the modern build needs bleeding-edge APIs (Map.getOrInsertComputed etc.)
@@ -81,26 +91,28 @@ export async function extractPdfText(
   const loadingTask = pdfjs.getDocument({ data: await file.arrayBuffer() });
   const doc = await loadingTask.promise;
   try {
-    // Pass 1: embedded text layer.
-    let out = '';
-    let totalChars = 0;
-    for (let p = 1; p <= doc.numPages; p++) {
-      onProgress?.({ phase: 'text', page: p, total: doc.numPages });
-      const page = await doc.getPage(p);
-      const content = await page.getTextContent();
-      let pageText = '';
-      for (const item of content.items) {
-        if ('str' in item) {
-          pageText += item.str;
-          if (item.hasEOL) pageText += '\n';
+    // Pass 1: embedded text layer (skipped entirely when OCR is forced).
+    if (!forceOcr) {
+      let out = '';
+      let totalChars = 0;
+      for (let p = 1; p <= doc.numPages; p++) {
+        onProgress?.({ phase: 'text', page: p, total: doc.numPages });
+        const page = await doc.getPage(p);
+        const content = await page.getTextContent();
+        let pageText = '';
+        for (const item of content.items) {
+          if ('str' in item) {
+            pageText += item.str;
+            if (item.hasEOL) pageText += '\n';
+          }
         }
+        page.cleanup();
+        totalChars += pageText.replace(/\s/g, '').length;
+        out += `${pageText}\n\n`;
       }
-      page.cleanup();
-      totalChars += pageText.replace(/\s/g, '').length;
-      out += `${pageText}\n\n`;
-    }
-    if (totalChars >= doc.numPages * MIN_CHARS_PER_PAGE) {
-      return out.replace(/\0/g, '').trim();
+      if (totalChars >= doc.numPages * MIN_CHARS_PER_PAGE) {
+        return out.replace(/\0/g, '').trim();
+      }
     }
 
     // Pass 2: scanned pages → render to JPEG → server-side OCR.
