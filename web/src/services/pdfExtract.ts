@@ -30,8 +30,8 @@ export interface ExtractOptions {
 /** Below this many characters per page on average, treat as a scanned PDF. */
 const MIN_CHARS_PER_PAGE = 20;
 
-/** OCR page cap — keeps time/cost sane for one import. */
-const MAX_OCR_PAGES = 200;
+/** Delay before the single automatic retry of a failed OCR batch. */
+const OCR_RETRY_DELAY_MS = 1500;
 
 /** Target render height for OCR input (px). */
 const OCR_TARGET_HEIGHT = 1600;
@@ -115,12 +115,9 @@ export async function extractPdfText(
       }
     }
 
-    // Pass 2: scanned pages → render to JPEG → server-side OCR.
-    if (doc.numPages > MAX_OCR_PAGES) {
-      throw new Error(
-        `スキャンPDFの文字認識は${MAX_OCR_PAGES}ページまでです（このPDFは${doc.numPages}ページ）。分割してお試しください。`,
-      );
-    }
+    // Pass 2: scanned pages → render to JPEG → server-side OCR. No page cap:
+    // whole books are processed batch by batch with a retry per batch, so a
+    // single transient failure hundreds of pages in doesn't waste the run.
     const pageTexts: string[] = [];
     for (let start = 1; start <= doc.numPages; start += OCR_BATCH) {
       const end = Math.min(doc.numPages, start + OCR_BATCH - 1);
@@ -129,7 +126,12 @@ export async function extractPdfText(
         onProgress?.({ phase: 'ocr', page: p, total: doc.numPages });
         images.push(await renderPageToJpeg(await doc.getPage(p)));
       }
-      pageTexts.push(...(await ocrPages(images)));
+      try {
+        pageTexts.push(...(await ocrPages(images)));
+      } catch {
+        await new Promise((r) => setTimeout(r, OCR_RETRY_DELAY_MS));
+        pageTexts.push(...(await ocrPages(images)));
+      }
     }
     const text = assembleOcrText(pageTexts).replace(/\0/g, '').trim();
     if (!text) {
