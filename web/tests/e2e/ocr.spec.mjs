@@ -23,9 +23,9 @@ const pdfPath = `${SHOT}/scan-book.pdf`;
     '<div style="writing-mode:vertical-rl;font-size:28px;height:1000px;padding:40px">第一章 習慣の力 小さな習慣が、人生を変える。まずは一歩、踏み出そう。</div>',
   );
   const png = await gen.screenshot({ fullPage: true });
-  await gen.setContent(
-    `<img style="width:100%" src="data:image/png;base64,${png.toString('base64')}">`,
-  );
+  // 6 image-only pages → two OCR batches (4 + 2).
+  const img = `<img style="width:100%;page-break-after:always" src="data:image/png;base64,${png.toString('base64')}">`;
+  await gen.setContent(img.repeat(6));
   await gen.pdf({ path: pdfPath, format: 'A4' });
   await gen.close();
 }
@@ -34,17 +34,28 @@ const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
 const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
 
-// Mock the OCR endpoint with vertical-scan style line fragments.
+// Mock the OCR endpoint with vertical-scan style line fragments. The very
+// first request fails with 500 to prove the per-batch retry recovers.
 const ocrBodies = [];
+let ocrPage = 0;
+let failedOnce = false;
 await page.route('**/api/ocr', async (route) => {
   const body = route.request().postDataJSON();
   ocrBodies.push(body);
+  if (!failedOnce) {
+    failedOnce = true;
+    await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'transient' }) });
+    return;
+  }
   await route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify({
-      texts: body.images.map(
-        () => '第一章 習慣の力\n小さな習慣が、\n人生を変える。\nまずは一歩、\n踏み出そう。',
-      ),
+      texts: body.images.map(() => {
+        ocrPage++;
+        return ocrPage === 1
+          ? '第一章 習慣の力\n小さな習慣が、\n人生を変える。'
+          : `ページ${ocrPage}の、\n内容です。`;
+      }),
       fallback: false,
     }),
   });
@@ -57,9 +68,13 @@ try {
 
   // Empty text layer → automatic OCR fallback.
   await page.getByTestId('file-preview').waitFor({ timeout: 30000 });
-  check(ocrBodies.length >= 1, 'OCR endpoint called for a scanned PDF');
+  check(ocrBodies.length === 3, `failed batch + retry + second batch = 3 requests (got ${ocrBodies.length})`);
+  check(
+    ocrBodies.map((b) => b.images.length).join(',') === '4,4,2',
+    'six pages split into 4+2 batches (first batch retried)',
+    ocrBodies.map((b) => b.images.length),
+  );
   check(Array.isArray(ocrBodies[0].images) && ocrBodies[0].images.length >= 1, 'request carries page images');
-  check(ocrBodies.every((b) => b.images.length <= 4), 'batches respect the 4-page limit');
   check(
     ocrBodies[0].images[0].length > 5000 && !ocrBodies[0].images[0].startsWith('data:'),
     'images are raw base64 JPEGs (no data: prefix)',
@@ -70,6 +85,10 @@ try {
     preview?.includes('小さな習慣が、人生を変える。'),
     'column fragments reassembled into sentences',
     preview?.slice(0, 120),
+  );
+  check(
+    preview?.includes('ページ2の、内容です。'),
+    'later pages present in order after the retried batch',
   );
 
   await page.getByRole('button', { name: '取り込む' }).click();
@@ -102,13 +121,13 @@ try {
   // Check the box: the already-selected PDF is re-extracted via OCR.
   await page.getByRole('checkbox').check();
   await page.waitForFunction(
-    (n) => document.querySelector('[data-testid="file-preview"]')?.textContent?.includes('小さな習慣') || n,
-    false,
+    () => document.querySelector('[data-testid="file-preview"]')?.textContent?.includes('内容です。'),
+    undefined,
     { timeout: 20000 },
   );
   preview2 = await page.getByTestId('file-preview').textContent();
   check(ocrBodies.length > callsBefore, 'force-OCR checkbox triggers OCR on the selected PDF');
-  check(preview2?.includes('小さな習慣が、人生を変える。'), 'preview replaced with OCR text', preview2?.slice(0, 80));
+  check(preview2?.includes('の、内容です。'), 'preview replaced with OCR text', preview2?.slice(0, 80));
 
   console.log(failures === 0 ? '\nALL OCR E2E CHECKS PASSED ✅' : `\n${failures} CHECK(S) FAILED ❌`);
 } catch (e) {
