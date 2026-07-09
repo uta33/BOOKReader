@@ -80,6 +80,36 @@ try {
     'OCR heading recognized as a chapter',
   );
 
+  // ---- Force-OCR checkbox: text-layer PDF, OCR anyway. ----
+  const textPdfPath = `${SHOT}/text-book.pdf`;
+  {
+    const gen = await browser.newPage();
+    await gen.setContent('<p>埋め込みテキストの本文です。壊れている想定。</p>');
+    await gen.pdf({ path: textPdfPath, format: 'A4' });
+    await gen.close();
+  }
+  await page.goto(`${BASE}/add`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: /台本を取り込み/ }).click();
+  const callsBefore = ocrBodies.length;
+
+  // Unchecked: text layer wins, no OCR call.
+  await page.locator('.filepick__input').setInputFiles(textPdfPath);
+  await page.getByTestId('file-preview').waitFor({ timeout: 20000 });
+  let preview2 = await page.getByTestId('file-preview').textContent();
+  check(ocrBodies.length === callsBefore, 'text-layer PDF: no OCR call by default');
+  check(preview2?.includes('埋め込みテキストの本文です'), 'text layer extracted by default');
+
+  // Check the box: the already-selected PDF is re-extracted via OCR.
+  await page.getByRole('checkbox').check();
+  await page.waitForFunction(
+    (n) => document.querySelector('[data-testid="file-preview"]')?.textContent?.includes('小さな習慣') || n,
+    false,
+    { timeout: 20000 },
+  );
+  preview2 = await page.getByTestId('file-preview').textContent();
+  check(ocrBodies.length > callsBefore, 'force-OCR checkbox triggers OCR on the selected PDF');
+  check(preview2?.includes('小さな習慣が、人生を変える。'), 'preview replaced with OCR text', preview2?.slice(0, 80));
+
   console.log(failures === 0 ? '\nALL OCR E2E CHECKS PASSED ✅' : `\n${failures} CHECK(S) FAILED ❌`);
 } catch (e) {
   console.error('E2E FAILED ❌', e);

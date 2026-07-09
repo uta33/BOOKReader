@@ -17,6 +17,7 @@ export function AddContent() {
   const [scriptText, setScriptText] = useState('');
   const [fileName, setFileName] = useState<string | null>(null);
   const [extracting, setExtracting] = useState<string | null>(null);
+  const [forceOcr, setForceOcr] = useState(false);
   const [loading, setLoading] = useState(false);
   const [liveText, setLiveText] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +29,9 @@ export function AddContent() {
   useEffect(() => {
     if (liveRef.current) liveRef.current.scrollTop = liveRef.current.scrollHeight;
   }, [liveText]);
+
+  // Kept so toggling 強制OCR re-extracts the already-selected PDF in place.
+  const lastFileRef = useRef<File | null>(null);
 
   const save = (
     title: string,
@@ -76,22 +80,27 @@ export function AddContent() {
     }
   };
 
-  const onFile = async (file: File | undefined) => {
+  const onFile = async (file: File | undefined, force = forceOcr) => {
     if (!file) return;
     setError(null);
     const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
+    lastFileRef.current = file;
     try {
       let text: string;
       if (isPdf) {
         // Text layer extracted in the browser; scanned PDFs fall back to
         // page-image OCR (server-side Cloud Vision, handles 縦書き).
-        setExtracting('PDFからテキストを抽出しています…');
-        text = await extractPdfText(file, ({ phase, page, total }) =>
-          setExtracting(
-            phase === 'ocr'
-              ? `スキャンPDFを文字認識（OCR）中… ${page}/${total}ページ`
-              : `PDFからテキストを抽出しています… ${page}/${total}ページ`,
-          ),
+        // 強制OCR skips the text layer entirely.
+        setExtracting(force ? '文字認識（OCR）を開始しています…' : 'PDFからテキストを抽出しています…');
+        text = await extractPdfText(
+          file,
+          ({ phase, page, total }) =>
+            setExtracting(
+              phase === 'ocr'
+                ? `文字認識（OCR）中… ${page}/${total}ページ`
+                : `PDFからテキストを抽出しています… ${page}/${total}ページ`,
+            ),
+          { forceOcr: force },
         );
       } else {
         text = await file.text();
@@ -240,6 +249,28 @@ export function AddContent() {
               <span className="filepick__icon">📄</span>
               <span className="filepick__text">
                 {extracting ?? fileName ?? 'タップして .md / .pdf ファイルを選択'}
+              </span>
+            </label>
+            <label className="checkrow">
+              <input
+                type="checkbox"
+                checked={forceOcr}
+                disabled={loading || extracting !== null}
+                onChange={(e) => {
+                  const v = e.target.checked;
+                  setForceOcr(v);
+                  // Re-extract the already-selected PDF with the new mode.
+                  const f = lastFileRef.current;
+                  if (f && (/\.pdf$/i.test(f.name) || f.type === 'application/pdf')) {
+                    void onFile(f, v);
+                  }
+                }}
+              />
+              <span>
+                文字認識（OCR）を強制する
+                <span className="checkrow__sub">
+                  PDFの文字が化ける・順番が乱れるときに。ページ画像から認識し直します
+                </span>
               </span>
             </label>
           </div>
