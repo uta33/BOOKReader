@@ -9,17 +9,15 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
-import { COLORS } from '../constants/colors';
-import { VOICES, PREVIEW_TEXT, VoiceOption } from '../constants/voices';
-import { SPEED_STEPS } from '../constants/speeds';
-import { useSettingsStore } from '../store/settingsStore';
-import { generatePreview } from '../services/googleTTS';
+import { COLORS } from '../../constants/colors';
+import { VOICES, PREVIEW_TEXT, VoiceOption } from '../../constants/voices';
+import { SPEED_STEPS } from '../../constants/speeds';
+import { useSettingsStore } from '../../store/settingsStore';
+import { generatePreview } from '../../services/googleTTS';
 
 export default function SettingsScreen() {
-  const router = useRouter();
   const { voiceName, speakingRate, pitch, speedStepIdx, setVoice, setSpeedIdx, setPitch } =
     useSettingsStore();
 
@@ -114,14 +112,10 @@ export default function SettingsScreen() {
     genderFilter === 'all' ? VOICES : VOICES.filter((v) => v.gender === genderFilter);
 
   return (
-    <SafeAreaView style={styles.safe}>
-      {/* Header */}
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      {/* タブなので戻るボタンは持たない。 */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => { stopCurrentPreview(); router.back(); }}>
-          <Text style={styles.back}>‹ 戻る</Text>
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>設定</Text>
-        <View style={{ width: 60 }} />
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
