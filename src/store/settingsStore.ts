@@ -8,9 +8,12 @@ interface SettingsState {
   speakingRate: number;
   pitch: number;
   speedStepIdx: number;
+  /** AI要約サーバーのベースURL。空なら要約機能を出さない。 */
+  apiBaseUrl: string;
   setVoice: (name: string) => void;
   setSpeedIdx: (idx: number) => void;
   setPitch: (pitch: number) => void;
+  setApiBaseUrl: (url: string) => void;
   loadSettings: () => Promise<void>;
   saveSettings: () => Promise<void>;
 }
@@ -22,6 +25,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   speakingRate: SPEED_STEPS[DEFAULT_SPEED_IDX],
   pitch: 0.0,
   speedStepIdx: DEFAULT_SPEED_IDX,
+  apiBaseUrl: '',
 
   setVoice: (name) => {
     set({ voiceName: name });
@@ -35,6 +39,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ pitch });
     get().saveSettings();
   },
+  setApiBaseUrl: (url) => {
+    set({ apiBaseUrl: url });
+    get().saveSettings();
+  },
 
   loadSettings: async () => {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
@@ -44,8 +52,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
   },
 
+  // フィールドを明示的に列挙している。新しい設定を足すときはここにも
+  // 追加しないと、loadSettings は素通しなので配線済みに見えたまま永続化されない。
   saveSettings: async () => {
-    const { voiceName, speakingRate, pitch, speedStepIdx } = get();
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ voiceName, speakingRate, pitch, speedStepIdx }));
+    const { voiceName, speakingRate, pitch, speedStepIdx, apiBaseUrl } = get();
+    await AsyncStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ voiceName, speakingRate, pitch, speedStepIdx, apiBaseUrl }),
+    );
   },
 }));

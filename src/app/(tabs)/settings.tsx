@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  TextInput,
   ScrollView,
   StyleSheet,
   ActivityIndicator,
@@ -18,8 +19,17 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { generatePreview } from '../../services/googleTTS';
 
 export default function SettingsScreen() {
-  const { voiceName, speakingRate, pitch, speedStepIdx, setVoice, setSpeedIdx, setPitch } =
-    useSettingsStore();
+  const {
+    voiceName,
+    speakingRate,
+    pitch,
+    speedStepIdx,
+    apiBaseUrl,
+    setVoice,
+    setSpeedIdx,
+    setPitch,
+    setApiBaseUrl,
+  } = useSettingsStore();
 
   const [genderFilter, setGenderFilter] = useState<'all' | 'female' | 'male'>('all');
   const [loadingVoice, setLoadingVoice] = useState<string | null>(null);
@@ -251,12 +261,45 @@ export default function SettingsScreen() {
             </Text>
           )}
         </TouchableOpacity>
+
+        {/* AI要約 */}
+        <Text style={styles.sectionTitle}>AI要約</Text>
+        <View style={styles.sliderCard}>
+          <Text style={styles.apiLabel}>要約サーバーのURL</Text>
+          <TextInput
+            style={styles.apiInput}
+            value={apiBaseUrl}
+            onChangeText={setApiBaseUrl}
+            placeholder="https://example.vercel.app"
+            placeholderTextColor={COLORS.muted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+          />
+          <Text style={styles.apiHint}>
+            未設定でもアプリは使えます。設定すると、マガジンノートの「まとめ」を
+            AIに書かせられるようになります。
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  apiLabel: { color: COLORS.muted, fontSize: 11.5, fontWeight: '700', letterSpacing: 0.5 },
+  apiInput: {
+    marginTop: 8,
+    backgroundColor: COLORS.cardElevated,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    color: COLORS.text,
+    fontSize: 14,
+  },
+  apiHint: { color: COLORS.muted, fontSize: 11.5, lineHeight: 18, marginTop: 8 },
   safe: { flex: 1, backgroundColor: COLORS.bg },
   header: {
     flexDirection: 'row',

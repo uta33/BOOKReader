@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -23,7 +24,9 @@ import { DogEarRow } from '../../components/note/DogEarRow';
 import { LinkRow } from '../../components/note/LinkRow';
 import { AddLinkModal } from '../../components/note/AddLinkModal';
 import { finishedSeq, notePosition } from '../../services/readingProgress';
+import { generateSummary, isSummaryApiConfigured } from '../../services/summaryApi';
 import { useLibraryStore } from '../../store/libraryStore';
+import { useSettingsStore } from '../../store/settingsStore';
 
 export default function NoteScreen() {
   const router = useRouter();
@@ -43,6 +46,11 @@ export default function NoteScreen() {
   const [summary, setSummary] = useState(book?.summary ?? '');
   const [recap, setRecap] = useState(book?.recap ?? '');
   const [linkModal, setLinkModal] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  const apiBaseUrl = useSettingsStore((s) => s.apiBaseUrl);
+  // 設定が変わったら判定し直す（apiBaseUrl を依存に置くため useMemo）。
+  const aiAvailable = useMemo(() => isSummaryApiConfigured(), [apiBaseUrl]);
 
   const spread = useMemo(() => {
     if (!book) return null;
@@ -70,6 +78,19 @@ export default function NoteScreen() {
         recap: recap || undefined,
         recapCreatedAt: recap ? Date.now() : undefined,
       });
+    }
+  };
+
+  const generateWithAi = async () => {
+    setGenerating(true);
+    try {
+      const { body } = await generateSummary(book.title, book.author);
+      setSummary(body);
+      updateBook(book.id, { summary: body });
+    } catch (e: unknown) {
+      Alert.alert('生成できませんでした', e instanceof Error ? e.message : String(e));
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -161,7 +182,11 @@ export default function NoteScreen() {
             )}
           </NoteSection>
 
-          <NoteSection title="まとめ">
+          <NoteSection
+            title="まとめ"
+            actionLabel={aiAvailable ? (generating ? '生成中…' : '✨ AIに書かせる') : undefined}
+            onAction={aiAvailable && !generating ? generateWithAi : undefined}
+          >
             <TextInput
               style={[styles.input, styles.inputProse]}
               value={summary}
@@ -171,7 +196,19 @@ export default function NoteScreen() {
               placeholderTextColor={COLORS.muted}
               multiline
               textAlignVertical="top"
+              editable={!generating}
             />
+            {generating && (
+              <View style={styles.busyRow}>
+                <ActivityIndicator size="small" color={COLORS.accent} />
+                <Text style={styles.empty}>AIが要約を作成しています…（30秒ほど）</Text>
+              </View>
+            )}
+            {!aiAvailable && (
+              <Text style={styles.empty}>
+                AI要約を使うには、設定でサーバーURLを指定してください。
+              </Text>
+            )}
           </NoteSection>
 
           <NoteSection title="ふりかえり（自分の言葉）">
@@ -262,6 +299,7 @@ const styles = StyleSheet.create({
   finishedBadgeText: { color: COLORS.accent, fontSize: 11, fontWeight: '700' },
 
   empty: { color: COLORS.muted, fontSize: 12.5, lineHeight: 20 },
+  busyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 
   input: {
     backgroundColor: COLORS.card,
