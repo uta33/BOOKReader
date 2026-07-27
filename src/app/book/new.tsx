@@ -101,8 +101,7 @@ export default function NewBookScreen() {
       purposes,
     });
     addBook(book);
-    // マガジンノート画面ができたらそこへ着地させる。
-    router.replace('/');
+    router.replace({ pathname: '/note/[id]', params: { id: book.id } });
   };
 
   if (duplicate) {
@@ -112,8 +111,16 @@ export default function NewBookScreen() {
         <View style={styles.center}>
           <Text style={styles.dupTitle}>すでに本棚にあります</Text>
           <Text style={styles.dupBody}>「{duplicate.title}」は登録済みです。</Text>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => router.replace('/')}>
-            <Text style={styles.primaryBtnText}>本棚へ戻る</Text>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={() =>
+              router.replace({ pathname: '/note/[id]', params: { id: duplicate.id } })
+            }
+          >
+            <Text style={styles.primaryBtnText}>ノートを開く</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.ghostBtn} onPress={() => router.replace('/')}>
+            <Text style={styles.ghostBtnText}>本棚へ戻る</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -283,7 +290,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   back: { color: COLORS.accent, fontSize: 26, lineHeight: 28 },
-  headerTitle: { color: COLORS.white, fontSize: 17, fontWeight: '700' },
+  headerTitle: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
 
   body: { padding: 20, gap: 18, paddingBottom: 32 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
@@ -298,7 +305,7 @@ const styles = StyleSheet.create({
   },
   isbnRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10 },
   isbnLabel: { color: COLORS.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1 },
-  isbnValue: { color: COLORS.white, fontSize: 15, fontWeight: '600' },
+  isbnValue: { color: COLORS.text, fontSize: 15, fontWeight: '600' },
   busyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   hint: { color: COLORS.mutedLight, fontSize: 12.5, lineHeight: 19 },
 
@@ -312,7 +319,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 11,
-    color: COLORS.white,
+    color: COLORS.text,
     fontSize: 15,
   },
   row: { flexDirection: 'row', gap: 12 },
@@ -342,7 +349,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   primaryBtnText: {
-    color: COLORS.white,
+    color: COLORS.onAccent,
     fontSize: 15,
     fontWeight: '700',
     textAlign: 'center',
@@ -351,6 +358,6 @@ const styles = StyleSheet.create({
   ghostBtn: { paddingVertical: 12, paddingHorizontal: 20 },
   ghostBtnText: { color: COLORS.accent, fontSize: 14, fontWeight: '600' },
 
-  dupTitle: { color: COLORS.white, fontSize: 17, fontWeight: '700' },
+  dupTitle: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
   dupBody: { color: COLORS.mutedLight, fontSize: 14, textAlign: 'center', marginBottom: 8 },
 });

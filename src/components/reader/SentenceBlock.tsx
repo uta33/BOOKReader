@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
     lineHeight: 30,
   },
   textActive: {
-    color: COLORS.white,
+    color: COLORS.text,
     fontWeight: '500',
   },
 });

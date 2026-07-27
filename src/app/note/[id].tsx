@@ -1,0 +1,296 @@
+import React, { useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { COLORS } from '../../constants/colors';
+import { TITLE_TEXT, QUOTE_TEXT } from '../../constants/typography';
+import { BOOKS_PER_VOLUME } from '../../constants/readingNote';
+import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { PurposeChips } from '../../components/common/PurposeChips';
+import { StarRating } from '../../components/common/StarRating';
+import { NoteSection } from '../../components/note/NoteSection';
+import { DogEarRow } from '../../components/note/DogEarRow';
+import { LinkRow } from '../../components/note/LinkRow';
+import { AddLinkModal } from '../../components/note/AddLinkModal';
+import { finishedSeq, notePosition } from '../../services/readingProgress';
+import { useLibraryStore } from '../../store/libraryStore';
+
+export default function NoteScreen() {
+  const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const books = useLibraryStore((s) => s.books);
+  const updateBook = useLibraryStore((s) => s.updateBook);
+  const removeDogEar = useLibraryStore((s) => s.removeDogEar);
+  const addLink = useLibraryStore((s) => s.addLink);
+  const removeLink = useLibraryStore((s) => s.removeLink);
+  const togglePurpose = useLibraryStore((s) => s.togglePurpose);
+  const setFinished = useLibraryStore((s) => s.setFinished);
+
+  const book = books.find((b) => b.id === id);
+
+  // 入力中はローカルに持ち、保存時に一度だけ書く（saveLibrary は全書籍を
+  // 再シリアライズするので、onChangeText からストアを触ってはいけない）。
+  const [summary, setSummary] = useState(book?.summary ?? '');
+  const [recap, setRecap] = useState(book?.recap ?? '');
+  const [linkModal, setLinkModal] = useState(false);
+
+  const spread = useMemo(() => {
+    if (!book) return null;
+    const seq = finishedSeq(books, book.id);
+    // 未読了の本は、次に埋まる見開きを仮に示す。
+    const n = seq ?? books.filter((b) => b.finishedAt != null).length;
+    return { ...notePosition(n), provisional: seq === null };
+  }, [books, book]);
+
+  if (!book) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader onBack={() => router.back()} />
+        <Text style={styles.missing}>本が見つかりません</Text>
+      </SafeAreaView>
+    );
+  }
+
+  const commitSummary = () => {
+    if (summary !== (book.summary ?? '')) updateBook(book.id, { summary: summary || undefined });
+  };
+  const commitRecap = () => {
+    if (recap !== (book.recap ?? '')) {
+      updateBook(book.id, {
+        recap: recap || undefined,
+        recapCreatedAt: recap ? Date.now() : undefined,
+      });
+    }
+  };
+
+  const confirmDeleteDogEar = (dogEarId: string) =>
+    Alert.alert('この抜き書きを削除', undefined, [
+      { text: 'キャンセル', style: 'cancel' },
+      { text: '削除', style: 'destructive', onPress: () => removeDogEar(book.id, dogEarId) },
+    ]);
+
+  const confirmDeleteLink = (linkId: string) =>
+    Alert.alert('このリンクを削除', undefined, [
+      { text: 'キャンセル', style: 'cancel' },
+      { text: '削除', style: 'destructive', onPress: () => removeLink(book.id, linkId) },
+    ]);
+
+  const finished = book.finishedAt != null;
+  const subtitle = [book.author, book.publisher, book.totalPages ? `${book.totalPages}ページ` : null]
+    .filter(Boolean)
+    .join(' · ');
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <ScreenHeader onBack={() => router.back()} flush />
+
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+          {/* 柱 — 縦持ちで見開きは組めないので、1冊＝1画面の不変条件だけを残す */}
+          <View style={styles.hashira}>
+            <View style={styles.hashiraRun}>
+              <Text style={styles.runText}>READING NOTE</Text>
+              <Text style={styles.runText}>
+                {spread
+                  ? `${spread.volume}冊目 · ${spread.page} / ${BOOKS_PER_VOLUME}${spread.provisional ? '（予定）' : ''}`
+                  : ''}
+              </Text>
+            </View>
+            <Text style={styles.hashiraTitle}>{book.title}</Text>
+            {subtitle.length > 0 && <Text style={styles.hashiraBy}>{subtitle}</Text>}
+            <View style={styles.hashiraFoot}>
+              <StarRating
+                value={book.rating}
+                onAccent
+                onChange={(v) => updateBook(book.id, { rating: v || undefined })}
+              />
+              {finished && (
+                <View style={styles.finishedBadge}>
+                  <Text style={styles.finishedBadgeText}>✓ 読了</Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          <NoteSection title="読む目的">
+            <PurposeChips
+              selected={book.purposes}
+              onToggle={(p) => togglePurpose(book.id, p)}
+            />
+          </NoteSection>
+
+          <NoteSection
+            title="ドッグイヤー"
+            actionLabel="＋ 抜き書きを追加"
+            onAction={() =>
+              router.push({ pathname: '/dogear/[bookId]', params: { bookId: book.id } })
+            }
+          >
+            {book.dogEars.length === 0 ? (
+              <Text style={styles.empty}>
+                折ったページを開いて、線を引いた箇所を書き写しましょう。
+                写している間に頭に入ります。
+              </Text>
+            ) : (
+              book.dogEars.map((d) => (
+                <DogEarRow
+                  key={d.id}
+                  dogEar={d}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/dogear/[bookId]',
+                      params: { bookId: book.id, dogEarId: d.id },
+                    })
+                  }
+                  onLongPress={() => confirmDeleteDogEar(d.id)}
+                />
+              ))
+            )}
+          </NoteSection>
+
+          <NoteSection title="まとめ">
+            <TextInput
+              style={[styles.input, styles.inputProse]}
+              value={summary}
+              onChangeText={setSummary}
+              onBlur={commitSummary}
+              placeholder="この本は何の本だったか"
+              placeholderTextColor={COLORS.muted}
+              multiline
+              textAlignVertical="top"
+            />
+          </NoteSection>
+
+          <NoteSection title="ふりかえり（自分の言葉）">
+            <TextInput
+              style={[styles.input, styles.inputProse]}
+              value={recap}
+              onChangeText={setRecap}
+              onBlur={commitRecap}
+              placeholder="何を学び、どう使うか"
+              placeholderTextColor={COLORS.muted}
+              multiline
+              textAlignVertical="top"
+            />
+          </NoteSection>
+
+          <NoteSection title="デジタルリンク" actionLabel="＋ 追加" onAction={() => setLinkModal(true)}>
+            {book.links.length === 0 ? (
+              <Text style={styles.empty}>
+                この本についての AI 対話やドキュメントの URL を紐づけられます。
+              </Text>
+            ) : (
+              book.links.map((l) => (
+                <LinkRow key={l.id} link={l} onLongPress={() => confirmDeleteLink(l.id)} />
+              ))
+            )}
+          </NoteSection>
+
+          {book.kind === 'content' && book.sentences.length > 0 && (
+            <TouchableOpacity
+              style={styles.listenBtn}
+              onPress={() => router.push(`/reader/${book.id}`)}
+            >
+              <Text style={styles.listenText}>▶ 聴く</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.finishBtn, finished && styles.finishBtnOn]}
+            onPress={() => setFinished(book.id, !finished)}
+          >
+            <Text style={[styles.finishText, finished && styles.finishTextOn]}>
+              {finished ? '読了を取り消す' : '✓ 読了にする'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+
+      <AddLinkModal
+        visible={linkModal}
+        onClose={() => setLinkModal(false)}
+        onAdd={(link) => addLink(book.id, link)}
+      />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: COLORS.bg },
+  flex: { flex: 1 },
+  missing: { color: COLORS.text, padding: 20 },
+  body: { paddingBottom: 32, gap: 22 },
+
+  hashira: {
+    backgroundColor: COLORS.accent,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 16,
+    gap: 6,
+  },
+  hashiraRun: { flexDirection: 'row', justifyContent: 'space-between' },
+  runText: {
+    color: COLORS.onAccent,
+    fontSize: 10.5,
+    letterSpacing: 1.6,
+    opacity: 0.82,
+  },
+  hashiraTitle: { ...TITLE_TEXT, color: COLORS.onAccent, fontWeight: '600' },
+  hashiraBy: { color: COLORS.onAccent, fontSize: 12, opacity: 0.82 },
+  hashiraFoot: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
+  finishedBadge: {
+    backgroundColor: 'rgba(246,247,243,0.95)',
+    borderRadius: 10,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+  },
+  finishedBadgeText: { color: COLORS.accent, fontSize: 11, fontWeight: '700' },
+
+  empty: { color: COLORS.muted, fontSize: 12.5, lineHeight: 20 },
+
+  input: {
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    color: COLORS.text,
+  },
+  inputProse: { ...QUOTE_TEXT, minHeight: 92 },
+
+  listenBtn: {
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+    borderRadius: 12,
+    paddingVertical: 13,
+  },
+  listenText: { color: COLORS.accent, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+
+  footer: { padding: 16, borderTopWidth: 1, borderTopColor: COLORS.border },
+  finishBtn: {
+    borderWidth: 1,
+    borderColor: COLORS.done,
+    borderRadius: 12,
+    paddingVertical: 14,
+  },
+  finishBtnOn: { backgroundColor: COLORS.doneDim },
+  finishText: { color: COLORS.done, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  finishTextOn: { color: COLORS.muted },
+});

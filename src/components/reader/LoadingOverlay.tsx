@@ -11,7 +11,7 @@ interface Props {
 export function LoadingOverlay({ progress, total }: Props) {
   const percent = total > 0 ? Math.round((progress / total) * 100) : 0;
   return (
-    <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill}>
+    <BlurView intensity={60} tint="light" style={StyleSheet.absoluteFill}>
       <View style={styles.inner}>
         <ActivityIndicator size="large" color={COLORS.accent} />
         <Text style={styles.title}>音声生成中...</Text>
@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   title: {
-    color: COLORS.white,
+    color: COLORS.text,
     fontSize: 18,
     fontWeight: '600',
   },

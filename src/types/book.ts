@@ -72,6 +72,7 @@ export interface Book {
   summary?: string;
   /** ふりかえり（自分の言葉）。 */
   recap?: string;
+  recapCreatedAt?: number;
   /** 1〜5。未評価は undefined。 */
   rating?: number;
   startedAt?: number;

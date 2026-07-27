@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "bookreader",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,

@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   },
   info: { flex: 1 },
   title: {
-    color: COLORS.white,
+    color: COLORS.text,
     fontSize: 15,
     fontWeight: '600',
     marginBottom: 4,

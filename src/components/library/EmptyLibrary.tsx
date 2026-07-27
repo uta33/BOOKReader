@@ -3,19 +3,24 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS } from '../../constants/colors';
 
 interface Props {
+  onScan: () => void;
   onImport: () => void;
 }
 
-export function EmptyLibrary({ onImport }: Props) {
+export function EmptyLibrary({ onScan, onImport }: Props) {
   return (
     <View style={styles.container}>
-      <Text style={styles.emoji}>📚</Text>
-      <Text style={styles.title}>まだ本がありません</Text>
+      <Text style={styles.emoji}>📕</Text>
+      <Text style={styles.title}>最初の一冊から</Text>
       <Text style={styles.subtitle}>
-PDFをインポートすると、音声で読み上げてくれます。
+        手元の本のバーコードを読み取ると、書名を引いてノートを作ります。
+        折ったページの抜き書きが、ここに溜まっていきます。
       </Text>
-      <TouchableOpacity onPress={onImport} style={styles.btn}>
-        <Text style={styles.btnText}>PDFを追加</Text>
+      <TouchableOpacity onPress={onScan} style={styles.btn}>
+        <Text style={styles.btnText}>紙の本を登録</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={onImport} style={styles.ghost}>
+        <Text style={styles.ghostText}>ファイルを取り込む</Text>
       </TouchableOpacity>
     </View>
   );
@@ -31,7 +36,7 @@ const styles = StyleSheet.create({
   },
   emoji: { fontSize: 64 },
   title: {
-    color: COLORS.white,
+    color: COLORS.text,
     fontSize: 22,
     fontWeight: '700',
   },
@@ -49,8 +54,10 @@ const styles = StyleSheet.create({
     borderRadius: 28,
   },
   btnText: {
-    color: COLORS.white,
+    color: COLORS.onAccent,
     fontWeight: '700',
     fontSize: 16,
   },
+  ghost: { paddingHorizontal: 20, paddingVertical: 8 },
+  ghostText: { color: COLORS.accent, fontSize: 14, fontWeight: '600' },
 });

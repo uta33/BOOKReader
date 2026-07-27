@@ -31,9 +31,9 @@ export default function HomeScreen() {
 
   const openBook = (id: string) => {
     const book = books.find((b) => b.id === id);
+    // 紙の本には読み上げるものが無いので、マガジンノートを開く。
     if (book?.kind === 'paper') {
-      // マガジンノート画面ができるまでの暫定。紙の本は読み上げるものが無い。
-      Alert.alert(book.title, 'この本のマガジンノートは次の更新で開けるようになります。');
+      router.push({ pathname: '/note/[id]', params: { id } });
       return;
     }
     router.push(`/reader/${id}`);
@@ -72,7 +72,7 @@ export default function HomeScreen() {
       </View>
 
       {books.length === 0 ? (
-        <EmptyLibrary onImport={pickAndImport} />
+        <EmptyLibrary onScan={() => router.push('/book/scan')} onImport={pickAndImport} />
       ) : (
         <FlatList
           data={books}
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   logo: {
-    color: COLORS.white,
+    color: COLORS.text,
     fontSize: 22,
     fontWeight: '800',
     letterSpacing: -0.5,
@@ -136,5 +136,5 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  fabText: { color: COLORS.white, fontSize: 32, fontWeight: '300', lineHeight: 36 },
+  fabText: { color: COLORS.onAccent, fontSize: 32, fontWeight: '300', lineHeight: 36 },
 });

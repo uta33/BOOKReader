@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { COLORS } from '../constants/colors';
 import { useAudioSession } from '../hooks/useAudioSession';
 import { useLibraryStore } from '../store/libraryStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -17,11 +18,11 @@ export default function RootLayout() {
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#0F0F0F' },
+          contentStyle: { backgroundColor: COLORS.bg },
           animation: 'slide_from_right',
         }}
       />

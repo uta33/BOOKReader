@@ -108,6 +108,7 @@ export function normalizeBook(raw: unknown): Book | null {
     bookstore: str(r.bookstore),
     summary: str(r.summary),
     recap: str(r.recap),
+    recapCreatedAt: optNum(r.recapCreatedAt),
     rating: optNum(r.rating),
     startedAt: optNum(r.startedAt),
     finishedAt: optNum(r.finishedAt),

@@ -22,7 +22,7 @@ export function PlayerBar({ onPlay, onPause, onSkipForward, onSkipBack }: Props)
   };
 
   return (
-    <BlurView intensity={80} tint="dark" style={styles.container}>
+    <BlurView intensity={80} tint="light" style={styles.container}>
       <TouchableOpacity onPress={cycleSpeed} style={styles.speedBtn}>
         <Text style={styles.speedText}>{SPEED_STEPS[speedStepIdx]}x</Text>
       </TouchableOpacity>
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   },
   playIcon: {
     fontSize: 22,
-    color: COLORS.white,
+    color: COLORS.onAccent,
   },
   spacer: { width: 52 },
 });

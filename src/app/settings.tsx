@@ -250,7 +250,7 @@ export default function SettingsScreen() {
           style={styles.fullPreviewBtn}
         >
           {loadingVoice === '__current__' ? (
-            <ActivityIndicator size="small" color={COLORS.white} />
+            <ActivityIndicator size="small" color={COLORS.onAccent} />
           ) : (
             <Text style={styles.fullPreviewText}>
               {playingVoice === '__current__' ? '⏸ 試聴停止' : '▶ 現在の設定で試聴'}
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   back: { color: COLORS.accent, fontSize: 17, width: 60 },
-  headerTitle: { color: COLORS.white, fontSize: 17, fontWeight: '600' },
+  headerTitle: { color: COLORS.text, fontSize: 17, fontWeight: '600' },
   scroll: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 60 },
   sectionTitle: {
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent,
   },
   voiceLabel: { color: COLORS.mutedLight, fontSize: 15, fontWeight: '500' },
-  voiceLabelSelected: { color: COLORS.white },
+  voiceLabelSelected: { color: COLORS.onAccent },
   voiceQuality: { color: COLORS.muted, fontSize: 12, marginTop: 2 },
   previewBtn: {
     width: 44,
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   },
   stepBtnActive: { backgroundColor: COLORS.accent },
   stepBtnText: { color: COLORS.muted, fontSize: 13, fontWeight: '600' },
-  stepBtnTextActive: { color: COLORS.white },
+  stepBtnTextActive: { color: COLORS.onAccent },
   sliderRange: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -370,5 +370,5 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
   },
-  fullPreviewText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  fullPreviewText: { color: COLORS.onAccent, fontSize: 16, fontWeight: '700' },
 });

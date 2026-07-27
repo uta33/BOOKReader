@@ -75,7 +75,7 @@ export default function ReaderScreen() {
   if (!book) {
     return (
       <SafeAreaView style={styles.safe}>
-        <Text style={{ color: COLORS.white, padding: 20 }}>本が見つかりません</Text>
+        <Text style={{ color: COLORS.text, padding: 20 }}>本が見つかりません</Text>
       </SafeAreaView>
     );
   }
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   backBtn: { color: COLORS.accent, fontSize: 28, lineHeight: 32 },
   title: {
     flex: 1,
-    color: COLORS.white,
+    color: COLORS.text,
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',

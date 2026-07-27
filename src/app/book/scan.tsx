@@ -105,7 +105,7 @@ export default function ScanScreen() {
         <View style={styles.guide} pointerEvents="none">
           {busy ? (
             <View style={styles.busyRow}>
-              <ActivityIndicator color={COLORS.white} />
+              <ActivityIndicator color={COLORS.onAccent} />
               <Text style={styles.guideText}>書誌情報を照会しています…</Text>
             </View>
           ) : notice ? (
@@ -141,10 +141,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   back: { color: COLORS.accent, fontSize: 16 },
-  title: { color: COLORS.white, fontSize: 17, fontWeight: '700' },
+  title: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
 
-  permTitle: { color: COLORS.white, fontSize: 17, fontWeight: '700' },
+  permTitle: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
   permBody: {
     color: COLORS.mutedLight,
     fontSize: 14,
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   primaryBtnText: {
-    color: COLORS.white,
+    color: COLORS.onAccent,
     fontSize: 15,
     fontWeight: '700',
     textAlign: 'center',
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   busyRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  guideText: { color: COLORS.white, fontSize: 13, lineHeight: 21 },
+  guideText: { color: COLORS.onAccent, fontSize: 13, lineHeight: 21 },
   noticeText: { color: COLORS.danger, fontSize: 13, lineHeight: 21, fontWeight: '600' },
   strong: { color: COLORS.danger, fontWeight: '700' },
 
