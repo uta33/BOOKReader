@@ -6,5 +6,7 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.d.ts", "expo-env.d.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", ".expo/types/**/*.d.ts", "expo-env.d.ts"],
+  "//": "web/ は独立したVite製PWAで、依存もtsconfigも web/ 配下に持つ。ルートの型チェックからは外す。",
+  "exclude": ["node_modules", "web"]
 }

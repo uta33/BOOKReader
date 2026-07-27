@@ -1,16 +1,80 @@
+import type { PurposeId } from '../constants/purposes';
+
 export interface Sentence {
   id: string;
   text: string;
   pageNumber: number;
 }
 
+/** 'paper' = 紙の本（READING NOTE 本来の対象）, 'content' = 取り込んだPDF/TXT/AI要約 */
+export type BookKind = 'paper' | 'content';
+
+/** ドッグイヤー抜き書き — 折ったページの P（ページ）/ L（行）/ 引用。 */
+export interface DogEar {
+  id: string;
+  /** P — 1始まり。0 は未指定。 */
+  page: number;
+  /** L — 1始まり。行を控えなかったときは undefined。 */
+  line?: number;
+  /** 書き写した本文。必須。 */
+  quote: string;
+  /** なぜ折ったか。 */
+  comment?: string;
+  createdAt: number;
+  updatedAt?: number;
+  /** 将来のOCR用。現状は常に undefined。 */
+  photoUri?: string;
+}
+
+export type LinkKind = 'notebooklm' | 'claude' | 'gdocs' | 'other';
+
+/** デジタルリンク — その本についてのAI対話・ドキュメントへの外部リンク。 */
+export interface DigitalLink {
+  id: string;
+  label: string;
+  url: string;
+  kind: LinkKind;
+  createdAt: number;
+}
+
 export interface Book {
+  // --- 既存（形・意味とも不変） ---
   id: string;
   title: string;
+  /** 紙の本は ''。 */
   uri: string;
+  /** 紙の本では任意入力のページ数。未入力は 0。 */
   totalPages: number;
+  /** 紙の本は []。 */
   sentences: Sentence[];
   lastSentenceIdx: number;
   cachedSentenceIds: string[];
   createdAt: number;
+
+  // --- READING NOTE（配列は必須。正規化で必ず埋まる） ---
+  kind: BookKind;
+  dogEars: DogEar[];
+  links: DigitalLink[];
+  purposes: PurposeId[];
+
+  // --- 書誌（JANコード照会で埋まる） ---
+  /** 正規化済み ISBN-13。重複判定のキー。 */
+  isbn?: string;
+  author?: string;
+  publisher?: string;
+  pubdate?: string;
+  /** 書影URL。バイト列は保存しない。 */
+  coverUrl?: string;
+
+  /** 出会った書店（目的「書店と出会う」の実績）。 */
+  bookstore?: string;
+  /** まとめ（AI要約 or 手入力）。 */
+  summary?: string;
+  /** ふりかえり（自分の言葉）。 */
+  recap?: string;
+  /** 1〜5。未評価は undefined。 */
+  rating?: number;
+  startedAt?: number;
+  /** 読了時刻。これが入った本だけが100冊にカウントされる。 */
+  finishedAt?: number;
 }

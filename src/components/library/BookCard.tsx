@@ -11,12 +11,10 @@ interface Props {
 }
 
 export function BookCard({ book, isLastOpened, onPress, onLongPress }: Props) {
-  const progress = book.sentences.length > 0
-    ? book.lastSentenceIdx / book.sentences.length
-    : 0;
+  const total = book.sentences?.length ?? 0;
+  const progress = total > 0 ? book.lastSentenceIdx / total : 0;
   const percent = Math.round(progress * 100);
-  const cached = book.cachedSentenceIds.length;
-  const total = book.sentences.length;
+  const cached = book.cachedSentenceIds?.length ?? 0;
 
   return (
     <TouchableOpacity
@@ -33,7 +31,7 @@ export function BookCard({ book, isLastOpened, onPress, onLongPress }: Props) {
 
       <View style={styles.info}>
         <Text style={styles.title} numberOfLines={2}>{book.title}</Text>
-        <Text style={styles.meta}>{total}文 · {book.totalPages}ページ</Text>
+        <Text style={styles.meta}>{total}文 · {book.totalPages ?? 0}ページ</Text>
 
         <View style={styles.progressRow}>
           <View style={styles.progressBg}>

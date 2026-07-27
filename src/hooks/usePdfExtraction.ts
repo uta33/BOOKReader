@@ -3,8 +3,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { buildSentences } from '../services/sentenceSplitter';
 import { extractTextFromFile } from '../services/pdfExtractor';
+import { createContentBook } from '../services/bookFactory';
 import { useLibraryStore } from '../store/libraryStore';
-import { Book } from '../types/book';
 
 export function usePdfExtraction() {
   const [loading, setLoading] = useState(false);
@@ -33,18 +33,15 @@ export function usePdfExtraction() {
       const sentences = buildSentences(pageTexts);
       const title = asset.name.replace(/\.(pdf|txt)$/i, '');
 
-      const book: Book = {
-        id: bookId,
-        title,
-        uri: destUri,
-        totalPages: Math.max(pageTexts.length, 1),
-        sentences,
-        lastSentenceIdx: 0,
-        cachedSentenceIds: [],
-        createdAt: Date.now(),
-      };
-
-      addBook(book);
+      addBook(
+        createContentBook({
+          id: bookId,
+          title,
+          uri: destUri,
+          totalPages: Math.max(pageTexts.length, 1),
+          sentences,
+        }),
+      );
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'ファイルの読み込みに失敗しました');
     } finally {
