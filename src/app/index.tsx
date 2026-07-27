@@ -30,7 +30,21 @@ export default function HomeScreen() {
   }, [error]);
 
   const openBook = (id: string) => {
+    const book = books.find((b) => b.id === id);
+    if (book?.kind === 'paper') {
+      // マガジンノート画面ができるまでの暫定。紙の本は読み上げるものが無い。
+      Alert.alert(book.title, 'この本のマガジンノートは次の更新で開けるようになります。');
+      return;
+    }
     router.push(`/reader/${id}`);
+  };
+
+  const addBook = () => {
+    Alert.alert('本を追加', undefined, [
+      { text: '📖 紙の本を登録（JANコード）', onPress: () => router.push('/book/scan') },
+      { text: '📄 ファイルを取り込む', onPress: pickAndImport },
+      { text: 'キャンセル', style: 'cancel' },
+    ]);
   };
 
   const confirmDelete = (id: string, title: string) => {
@@ -77,7 +91,7 @@ export default function HomeScreen() {
 
       {/* FAB */}
       <TouchableOpacity
-        onPress={pickAndImport}
+        onPress={addBook}
         style={styles.fab}
         disabled={loading}
       >

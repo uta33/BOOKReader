@@ -19,13 +19,22 @@
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-        "android.permission.WAKE_LOCK"
+        "android.permission.WAKE_LOCK",
+        "android.permission.CAMERA"
       ]
     },
     "plugins": [
       ["expo-router", { "root": "src/app" }],
       "expo-document-picker",
-      ["expo-av", { "microphonePermission": false }]
+      ["expo-av", { "microphonePermission": false }],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "本のバーコード（JANコード）を読み取るためにカメラを使います。",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
