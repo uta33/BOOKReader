@@ -1,138 +1,82 @@
 # BOOKReader — READING NOTE
 
-天狼院書店／海の出版社の「リーディング・ノート（READING NOTE）」の仕組みを
-Android アプリにしたもの。紙の本と取り込みコンテンツを同じ本棚で扱う。
+紙の本とPDF/TXTを同じ本棚で扱い、マガジンノート、ドッグイヤー抜き書き、
+100冊の進捗、AI要約、読み上げをまとめたExpo製Androidアプリです。
 
-> **出典について**
-> 仕組みの理解は公開情報からの再構成で、原典と細部が異なる可能性があります。
+## 構成
 
-## 仕組み
+- `src/` — Expo SDK 57 / React Nativeアプリ
+- `worker/` — Cloudflare Worker、D1、匿名認証、同期、Google OAuth、AIプロキシ
+- `web/` — Vite PWA。Workerへ直接接続し、Vercel Functionsは互換プロキシとして維持
+- `docs/` — アーキテクチャ、デプロイ、自己テスト、Play向け文書
 
-- **マガジンノート** — 1冊＝1見開き。ノート1冊で48冊、通算100冊で1周
-- **ドッグイヤー抜き書き** — 折ったページの P（ページ）と L（行）＋線を引いた箇所を書き写す
-- **デジタルリンク** — その本についての AI 対話やドキュメントの URL を紐づける
-- **100冊のゲーム化と10の目的** — 通算100冊・月8冊のペース・目的別の達成度
+プロバイダーのAPIキーはWorker Secretだけに保存します。APK、PWA、Vercelには
+Google TTS、Vision、Anthropicのキーを置きません。
 
-## 機能
+## ローカル開発
 
-- **JANコードで登録** — 本の裏表紙のバーコード（ISBN-13）を読み取り、
-  openBD／国立国会図書館サーチから書名・著者・書影を引く。手入力も可
-- **マガジンノート** — 抜き書き・まとめ・ふりかえり・評価・リンク・読了を1画面に集約
-- **進捗** — 100冊を 10×10 のマス目で表示（10の目的 × 10冊）
-- **PDF / TXT 取り込みと読み上げ** — Google Cloud TTS の日本語音声、
-  文単位ハイライト、速度・ピッチ調整、音声キャッシュ、バックグラウンド再生
-- **AI要約（任意）** — サーバーURLを設定すると「まとめ」を AI に書かせられる
-
-## 技術スタック
-
-- **Expo SDK 53** / React Native 0.79 / React 19
-- **Expo Router** — ファイルベースルーティング（タブ ＋ スタック）
-- **Zustand** — 状態管理（AsyncStorage 永続化）
-- **expo-camera** — JANコード（EAN-13）スキャン
-- **expo-av** — 音声再生・バックグラウンド再生
-- **TypeScript** (strict mode)
-
-## セットアップ
-
-### 前提条件
-
-- Node.js 20+
-- Google Cloud Text-to-Speech API キー（読み上げを使う場合）
-
-### インストール
+前提はNode.js 20以降です。
 
 ```bash
-git clone <repository-url>
-cd BOOKReader
-npm install --legacy-peer-deps
+npm install
+npm --prefix web install
+npm --prefix worker install
 ```
 
-### 環境変数
+Workerのローカル設定を作ります。
 
 ```bash
-cp .env.example .env
+copy worker\.dev.vars.example worker\.dev.vars
+npm --prefix worker run db:migrate:local
+npm --prefix worker run dev
 ```
 
-| 変数 | 必須 | 用途 |
-|---|---|---|
-| `EXPO_PUBLIC_GOOGLE_TTS_API_KEY` | 読み上げを使うなら | Google Cloud TTS |
-| `EXPO_PUBLIC_API_BASE_URL` | 任意 | AI要約サーバー。未設定なら要約機能を出さない（設定画面から上書き可） |
-
-書誌の照会（openBD／NDLサーチ）は**キー不要**なので、何も設定しなくても
-JANコードでの登録は動く。
-
-### 起動
+別のターミナルでExpoを起動します。実機からローカルWorkerへ接続するときは、
+設定画面の「開発用API」へPCのLAN内URLを指定できます。
 
 ```bash
 npx expo start
 ```
 
-`expo-camera` は Expo Go のバンドルに含まれるので、開発は Expo Go のままできる。
+preview／productionビルドでは設定画面からAPI URLを変更できません。公開候補URLは
+`eas.json` の `EXPO_PUBLIC_API_BASE_URL` に固定しています。
 
 ## 検証
 
 ```bash
-npm run typecheck   # tsc --noEmit
-npm run test:unit   # 純ロジックのユニットテスト
-npm test            # 上の両方
+npm test
+npx expo-doctor
+npm --prefix worker run db:migrate:local
+npm --prefix worker run test:smoke
+npm --prefix worker run deploy:dry-run
 ```
 
-テストはフレームワークを使わず、`tsx` で `.mts` を直接実行する
-（`web/tests/unit/` と同じ流儀）。対象は `react-native` を import しない
-純モジュールに限る — 蔵書データの移行、100冊の集計、ISBN の検証、
-書誌レスポンスの整形、要約の整形。
+`npm test` はAndroid純ロジック、PWA、Workerの型チェックとユニットテストをまとめて実行します。
+`test:smoke` はローカルD1を使い、認証・同期競合・クォータ・削除・CORSを実APIで通します。
 
-> `typedRoutes` の型は dev server が `.expo/types` に生成し、`.expo/` は
-> gitignore されている。**ルートを追加・移動したあとは一度 `npx expo start` を
-> 回してから型チェックする**こと。そうしないとルート文字列の誤りを検出できない。
+## 自己テスト環境
 
-手で確かめるべきこと:
+- Worker: <https://bookreader-api.hamasan.workers.dev>
+- プライバシーポリシー: <https://bookreader-api.hamasan.workers.dev/privacy>
+- アカウント削除: <https://bookreader-api.hamasan.workers.dev/account/delete>
 
-- 本の**上段**（978…）のバーコードで登録できる／**下段**（192…）を読むと専用の案内が出る
-- カメラを拒否しても手入力で登録できる
-- アプリを終了→再起動しても抜き書きが残っている
-- 旧バージョンの APK からの上書きインストールで既存の本が消えない
+匿名認証・同期・削除は稼働済みです。Anthropic、Google TTS/Vision、Google OAuthは
+各サービスの資格情報をWorkerへ登録してから実機テストを開始します。
+検証済みWorker versionは `862ec736-79e1-4fd9-9ab2-f28e349251fb` です。
 
-## ビルド
-
-### Android (EAS Build)
+## Androidビルド
 
 ```bash
-npx eas build --platform android --profile preview   # APK
+npx eas build --platform android --profile preview
+npx eas build --platform android --profile production
 ```
 
-### GitHub Actions
+- `preview`：本人テスト用の署名付きAPK
+- `production`：Play用AAB
 
-`main` への push で自動ビルド。GitHub Secrets に `GOOGLE_TTS_API_KEY` と
-`EXPO_TOKEN` が必要。
+既存APKへ上書きするため、既存ビルドと同じAndroid keystoreを必ず再利用してください。
+自己テストに合格するまでPlay Consoleへアップロードしません。
 
-## プロジェクト構成
-
-```
-src/
-├── app/                      # Expo Router 画面
-│   ├── _layout.tsx
-│   ├── (tabs)/               # ホーム / 本棚 / 進捗 / 設定
-│   ├── book/scan.tsx         # JANコードのスキャン
-│   ├── book/new.tsx          # 紙の本の登録・確認フォーム
-│   ├── note/[id].tsx         # マガジンノート（1冊1見開き）
-│   ├── dogear/[bookId].tsx   # ドッグイヤー抜き書きの入力・編集
-│   └── reader/[id].tsx       # 読み上げリーダー
-├── components/
-│   ├── common/               # ScreenHeader, PurposeChips, StarRating, StatBar, DotGrid
-│   ├── note/                 # NoteSection, DogEarRow, LinkRow, AddLinkModal
-│   ├── library/              # BookCard, EmptyLibrary
-│   ├── player/               # PlayerBar
-│   └── reader/               # TextDisplay, PageIndicator, LoadingOverlay, SentenceBlock
-├── constants/                # colors（紙・墨・藍・朱）, typography, purposes, readingNote
-├── hooks/
-├── services/                 # isbn, bookLookup, libraryMigration, readingProgress,
-│                             # bookFactory, summaryApi, summaryParser, googleTTS, …
-├── store/                    # libraryStore, readerStore, settingsStore
-└── types/
-tests/unit/                   # tsx で直接実行するユニットテスト
-web/                          # 別アプリ（Vite製PWA）。AI要約APIの供給元
-```
-
-`web/` は同名の別アプリで、このリポジトリに同居している。Android アプリは
-その `/api/generate-summary` を呼ぶだけで、`web/` 自体には依存しない。
+詳細は [デプロイ手順](docs/deployment.md) と
+[14日間の自己テスト](docs/self-test.md)、
+[依存関係セキュリティ監査](docs/security-audit.md) を参照してください。
