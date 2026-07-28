@@ -10,7 +10,8 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
+import type { EventSubscription } from 'expo-modules-core';
 import Slider from '@react-native-community/slider';
 import { COLORS } from '../../constants/colors';
 import { VOICES, PREVIEW_TEXT, VoiceOption } from '../../constants/voices';
@@ -34,13 +35,16 @@ export default function SettingsScreen() {
   const [genderFilter, setGenderFilter] = useState<'all' | 'female' | 'male'>('all');
   const [loadingVoice, setLoadingVoice] = useState<string | null>(null);
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const playerRef = useRef<AudioPlayer | null>(null);
+  const statusSubscriptionRef = useRef<EventSubscription | null>(null);
 
   const stopCurrentPreview = useCallback(async () => {
-    if (soundRef.current) {
-      await soundRef.current.stopAsync();
-      await soundRef.current.unloadAsync();
-      soundRef.current = null;
+    statusSubscriptionRef.current?.remove();
+    statusSubscriptionRef.current = null;
+    if (playerRef.current) {
+      playerRef.current.pause();
+      playerRef.current.remove();
+      playerRef.current = null;
     }
     setPlayingVoice(null);
     setLoadingVoice(null);
@@ -64,22 +68,21 @@ export default function SettingsScreen() {
           pitch,
         });
 
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: filePath },
-          { shouldPlay: true }
-        );
-        soundRef.current = sound;
+        const player = createAudioPlayer({ uri: filePath }, { keepAudioSessionActive: true });
+        playerRef.current = player;
         setLoadingVoice(null);
         setPlayingVoice(voice.name);
 
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (!status.isLoaded) return;
+        statusSubscriptionRef.current = player.addListener('playbackStatusUpdate', (status) => {
           if (status.didJustFinish) {
             setPlayingVoice(null);
-            sound.unloadAsync();
-            soundRef.current = null;
+            statusSubscriptionRef.current?.remove();
+            statusSubscriptionRef.current = null;
+            player.remove();
+            if (playerRef.current === player) playerRef.current = null;
           }
         });
+        player.play();
       } catch (e: unknown) {
         setLoadingVoice(null);
         Alert.alert('エラー', `試聴できませんでした: ${e instanceof Error ? e.message : String(e)}`);
@@ -97,21 +100,20 @@ export default function SettingsScreen() {
         speakingRate,
         pitch,
       });
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: filePath },
-        { shouldPlay: true }
-      );
-      soundRef.current = sound;
+      const player = createAudioPlayer({ uri: filePath }, { keepAudioSessionActive: true });
+      playerRef.current = player;
       setLoadingVoice(null);
       setPlayingVoice('__current__');
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (!status.isLoaded) return;
+      statusSubscriptionRef.current = player.addListener('playbackStatusUpdate', (status) => {
         if (status.didJustFinish) {
           setPlayingVoice(null);
-          sound.unloadAsync();
-          soundRef.current = null;
+          statusSubscriptionRef.current?.remove();
+          statusSubscriptionRef.current = null;
+          player.remove();
+          if (playerRef.current === player) playerRef.current = null;
         }
       });
+      player.play();
     } catch (e: unknown) {
       setLoadingVoice(null);
       Alert.alert('エラー', e instanceof Error ? e.message : String(e));

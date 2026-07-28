@@ -1,20 +1,24 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
+import type { EventSubscription } from 'expo-modules-core';
 import { useReaderStore } from '../store/readerStore';
 import { useLibraryStore } from '../store/libraryStore';
 import { audioCachePath } from '../services/googleTTS';
 import { Sentence } from '../types/book';
 
 export function useAudioPlayer(bookId: string, sentences: Sentence[]) {
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const playerRef = useRef<AudioPlayer | null>(null);
+  const statusSubscriptionRef = useRef<EventSubscription | null>(null);
   const { currentSentenceIdx, isPlaying, setCurrentSentenceIdx, setPlaying } = useReaderStore();
   const { updateBook } = useLibraryStore();
 
   const stopCurrent = useCallback(async () => {
-    if (soundRef.current) {
-      await soundRef.current.stopAsync();
-      await soundRef.current.unloadAsync();
-      soundRef.current = null;
+    statusSubscriptionRef.current?.remove();
+    statusSubscriptionRef.current = null;
+    if (playerRef.current) {
+      playerRef.current.pause();
+      playerRef.current.remove();
+      playerRef.current = null;
     }
   }, []);
 
@@ -26,20 +30,24 @@ export function useAudioPlayer(bookId: string, sentences: Sentence[]) {
       }
       await stopCurrent();
       const path = audioCachePath(bookId, sentences[idx].id);
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: path },
-        { shouldPlay: true }
-      );
-      soundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (!status.isLoaded) return;
+      const player = createAudioPlayer({ uri: path }, {
+        updateInterval: 250,
+        keepAudioSessionActive: true,
+      });
+      playerRef.current = player;
+      statusSubscriptionRef.current = player.addListener('playbackStatusUpdate', (status) => {
         if (status.didJustFinish) {
+          statusSubscriptionRef.current?.remove();
+          statusSubscriptionRef.current = null;
+          player.remove();
+          if (playerRef.current === player) playerRef.current = null;
           const next = idx + 1;
           setCurrentSentenceIdx(next);
           updateBook(bookId, { lastSentenceIdx: next });
-          playSentence(next);
+          void playSentence(next);
         }
       });
+      player.play();
     },
     [bookId, sentences, stopCurrent, setCurrentSentenceIdx, setPlaying, updateBook]
   );
@@ -51,7 +59,7 @@ export function useAudioPlayer(bookId: string, sentences: Sentence[]) {
 
   const pause = useCallback(async () => {
     setPlaying(false);
-    if (soundRef.current) await soundRef.current.pauseAsync();
+    playerRef.current?.pause();
   }, []);
 
   const skipForward = useCallback(async () => {

@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { TTSOptions } from '../types/tts';
 
 const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_TTS_API_KEY ?? '';
