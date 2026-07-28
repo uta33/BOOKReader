@@ -1,11 +1,11 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Text, type ColorValue } from 'react-native';
 import { Tabs } from 'expo-router';
 import { COLORS } from '../../constants/colors';
 
 /** 絵文字をそのままアイコンに使う（@expo/vector-icons を足さない）。 */
 function icon(glyph: string) {
-  return ({ color }: { color: string }) => (
+  return ({ color }: { color: ColorValue }) => (
     <Text style={{ fontSize: 19, color, opacity: color === COLORS.accent ? 1 : 0.75 }}>
       {glyph}
     </Text>
