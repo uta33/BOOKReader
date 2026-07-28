@@ -1,37 +1,14 @@
 /**
- * AI要約。web/ の Vercel Functions を HTTPS で呼ぶ。
+ * AI要約。認証済みでCloudflare WorkerをHTTPS呼び出しする。
  *
- * クライアントに Anthropic SDK も API キーも置かない（web/ と同じ性質を保つ）。
+ * クライアントに Anthropic SDK も API キーも置かない。
  * URL が設定されていなければ機能ごと出さない。
  */
-import { useSettingsStore } from '../store/settingsStore';
+import { apiBase, apiError, authenticatedFetch, isApiConfigured } from './authClient';
 import { extractSummaryBody } from './summaryParser';
 
-const ENV_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/+$/, '');
-
-/** 設定画面での上書き > .env > 未設定。 */
-export function apiBase(): string {
-  const override = useSettingsStore.getState().apiBaseUrl?.trim().replace(/\/+$/, '');
-  return override || ENV_BASE;
-}
-
 export function isSummaryApiConfigured(): boolean {
-  return apiBase().length > 0;
-}
-
-async function readError(res: Response, fallback: string): Promise<string> {
-  try {
-    const text = await res.text();
-    if (!text) return fallback;
-    try {
-      const json = JSON.parse(text) as { error?: string; message?: string };
-      return json.error ?? json.message ?? text.slice(0, 200);
-    } catch {
-      return text.slice(0, 200);
-    }
-  } catch {
-    return fallback;
-  }
+  return isApiConfigured();
 }
 
 /**
@@ -52,7 +29,7 @@ export async function generateSummary(
     throw new Error('要約サーバーのURLが未設定です。設定画面で指定してください。');
   }
 
-  const res = await fetch(`${base}/api/generate-summary`, {
+  const res = await authenticatedFetch('/api/generate-summary', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ topic, guidance }),
@@ -60,7 +37,7 @@ export async function generateSummary(
   });
 
   if (!res.ok) {
-    throw new Error(await readError(res, `生成に失敗しました (${res.status})`));
+    throw new Error(await apiError(res, `生成に失敗しました (${res.status})`));
   }
 
   const text = await res.text();

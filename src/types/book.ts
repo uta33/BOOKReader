@@ -22,6 +22,8 @@ export interface DogEar {
   comment?: string;
   createdAt: number;
   updatedAt?: number;
+  deletedAt?: number;
+  originDeviceId?: string;
   /** 将来のOCR用。現状は常に undefined。 */
   photoUri?: string;
 }
@@ -35,6 +37,9 @@ export interface DigitalLink {
   url: string;
   kind: LinkKind;
   createdAt: number;
+  updatedAt?: number;
+  deletedAt?: number;
+  originDeviceId?: string;
 }
 
 export interface Book {
@@ -50,6 +55,9 @@ export interface Book {
   lastSentenceIdx: number;
   cachedSentenceIds: string[];
   createdAt: number;
+  updatedAt?: number;
+  deletedAt?: number;
+  originDeviceId?: string;
 
   // --- READING NOTE（配列は必須。正規化で必ず埋まる） ---
   kind: BookKind;

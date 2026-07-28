@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,21 @@ import { VOICES, PREVIEW_TEXT, VoiceOption } from '../../constants/voices';
 import { SPEED_STEPS } from '../../constants/speeds';
 import { useSettingsStore } from '../../store/settingsStore';
 import { generatePreview } from '../../services/googleTTS';
+import * as Clipboard from 'expo-clipboard';
+import { isApiConfigured } from '../../services/authClient';
+import { syncNow } from '../../services/syncEngine';
+import {
+  createAccountDeletionTicket,
+  deleteCurrentAccount,
+  getAccount,
+  InvalidSessionError,
+  linkGoogle,
+  resetInvalidSession,
+  resolveGoogleConflict,
+  signOutAccount,
+  type AccountInfo,
+  type GoogleLinkResult,
+} from '../../services/accountClient';
 
 export default function SettingsScreen() {
   const {
@@ -35,8 +50,198 @@ export default function SettingsScreen() {
   const [genderFilter, setGenderFilter] = useState<'all' | 'female' | 'male'>('all');
   const [loadingVoice, setLoadingVoice] = useState<string | null>(null);
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
+  const [account, setAccount] = useState<AccountInfo | null>(null);
+  const [accountBusy, setAccountBusy] = useState(true);
+  const [accountError, setAccountError] = useState<string | null>(null);
+  const [sessionInvalid, setSessionInvalid] = useState(false);
   const playerRef = useRef<AudioPlayer | null>(null);
   const statusSubscriptionRef = useRef<EventSubscription | null>(null);
+
+  const refreshAccount = useCallback(async () => {
+    if (!isApiConfigured()) {
+      setAccountBusy(false);
+      return;
+    }
+    try {
+      setAccount(await getAccount());
+      setSessionInvalid(false);
+      setAccountError(null);
+    } catch (error) {
+      setAccount(null);
+      const message = error instanceof Error ? error.message : String(error);
+      setAccountError(message);
+      if (error instanceof InvalidSessionError) setSessionInvalid(true);
+    } finally {
+      setAccountBusy(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshAccount();
+  }, [refreshAccount]);
+
+  const runAccountAction = useCallback(
+    async (action: () => Promise<void>) => {
+      setAccountBusy(true);
+      setAccountError(null);
+      try {
+        await action();
+        await refreshAccount();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setAccountError(message);
+        Alert.alert('エラー', message);
+      } finally {
+        setAccountBusy(false);
+      }
+    },
+    [refreshAccount],
+  );
+
+  const resolveConflict = useCallback(
+    (result: Extract<GoogleLinkResult, { status: 'choice_required' }>) => {
+      Alert.alert(
+        '保存先を選択',
+        `このGoogleアカウントには${result.cloudBooks}冊、端末側には${result.localBooks}冊あります。`,
+        [
+          {
+            text: 'まとめる（推奨）',
+            onPress: () =>
+              void runAccountAction(() =>
+                resolveGoogleConflict(result.conflictId, 'merge'),
+              ),
+          },
+          {
+            text: `クラウド側だけ使う`,
+            style: 'destructive',
+            onPress: () =>
+              Alert.alert(
+                `${result.localBooks}冊を端末から削除`,
+                'この操作は元に戻せません。クラウド側の本棚だけを使いますか？',
+                [
+                  { text: 'やめる', style: 'cancel' },
+                  {
+                    text: '削除して続ける',
+                    style: 'destructive',
+                    onPress: () =>
+                      void runAccountAction(() =>
+                        resolveGoogleConflict(result.conflictId, 'cloud'),
+                      ),
+                  },
+                ],
+              ),
+          },
+          {
+            text: 'やめる',
+            style: 'cancel',
+            onPress: () =>
+              void runAccountAction(() =>
+                resolveGoogleConflict(result.conflictId, 'cancel'),
+              ),
+          },
+        ],
+      );
+    },
+    [runAccountAction],
+  );
+
+  const onGoogleLink = useCallback(() => {
+    void runAccountAction(async () => {
+      const result = await linkGoogle();
+      if (result.status === 'choice_required') {
+        resolveConflict(result);
+        return;
+      }
+      Alert.alert('Google連携完了', result.email ?? 'アカウントを連携しました。');
+    });
+  }, [resolveConflict, runAccountAction]);
+
+  const onSignOut = useCallback(() => {
+    Alert.alert(
+      'サインアウト',
+      'この端末のデータは消えます。Google連携済みのクラウドデータは残ります。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: 'サインアウト',
+          style: 'destructive',
+          onPress: () => void runAccountAction(signOutAccount),
+        },
+      ],
+    );
+  }, [runAccountAction]);
+
+  const onDeleteAccount = useCallback(() => {
+    Alert.alert(
+      'アカウントを削除',
+      `クラウド上の${account?.bookCount ?? 0}冊と、この端末のデータをすべて削除します。元に戻せません。`,
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '次へ',
+          style: 'destructive',
+          onPress: () =>
+            Alert.alert('本当に削除しますか？', '削除後は新しい匿名アカウントになります。', [
+              { text: 'やめる', style: 'cancel' },
+              {
+                text: '完全に削除',
+                style: 'destructive',
+                onPress: () => void runAccountAction(deleteCurrentAccount),
+              },
+            ]),
+        },
+      ],
+    );
+  }, [account?.bookCount, runAccountAction]);
+
+  const onDeletionTicket = useCallback(() => {
+    void runAccountAction(async () => {
+      const result = await createAccountDeletionTicket();
+      await Clipboard.setStringAsync(result.ticket);
+      Alert.alert(
+        '削除用コードをコピーしました',
+        `10分以内に ${result.deletionUrl} を開き、コピーしたコードを入力してください。`,
+      );
+    });
+  }, [runAccountAction]);
+
+  const onKeepLocalAfterInvalidSession = useCallback(() => {
+    Alert.alert(
+      '端末データを残して再開',
+      'この端末の読書記録を残し、新しい匿名クラウドへ同期します。削除した以前のアカウントは復元されません。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '新しく始める',
+          onPress: () => void runAccountAction(() => resetInvalidSession(true)),
+        },
+      ],
+    );
+  }, [runAccountAction]);
+
+  const onDiscardLocalAfterInvalidSession = useCallback(() => {
+    Alert.alert(
+      '端末データも削除',
+      'この端末に残っている読書記録もすべて削除します。この操作は元に戻せません。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '次へ',
+          style: 'destructive',
+          onPress: () =>
+            Alert.alert('本当に削除しますか？', '削除後は空の匿名アカウントで再開します。', [
+              { text: 'やめる', style: 'cancel' },
+              {
+                text: '完全に削除',
+                style: 'destructive',
+                onPress: () =>
+                  void runAccountAction(() => resetInvalidSession(false)),
+              },
+            ]),
+        },
+      ],
+    );
+  }, [runAccountAction]);
 
   const stopCurrentPreview = useCallback(async () => {
     statusSubscriptionRef.current?.remove();
@@ -182,6 +387,15 @@ export default function SettingsScreen() {
                 onPress={() => playVoicePreview(voice)}
                 style={styles.previewBtn}
                 disabled={isLoading}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  isLoading
+                    ? `${voice.label}を準備中`
+                    : isPlaying
+                      ? `${voice.label}の試聴を停止`
+                      : `${voice.label}を試聴`
+                }
+                accessibilityState={{ disabled: isLoading }}
               >
                 {isLoading ? (
                   <ActivityIndicator size="small" color={COLORS.accent} />
@@ -264,31 +478,160 @@ export default function SettingsScreen() {
           )}
         </TouchableOpacity>
 
-        {/* AI要約 */}
-        <Text style={styles.sectionTitle}>AI要約</Text>
+        <Text style={styles.sectionTitle}>アカウントと同期</Text>
         <View style={styles.sliderCard}>
-          <Text style={styles.apiLabel}>要約サーバーのURL</Text>
-          <TextInput
-            style={styles.apiInput}
-            value={apiBaseUrl}
-            onChangeText={setApiBaseUrl}
-            placeholder="https://example.vercel.app"
-            placeholderTextColor={COLORS.muted}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-          />
-          <Text style={styles.apiHint}>
-            未設定でもアプリは使えます。設定すると、マガジンノートの「まとめ」を
-            AIに書かせられるようになります。
-          </Text>
+          {!isApiConfigured() ? (
+            <Text style={styles.apiHint}>公開用APIの設定後に利用できます。</Text>
+          ) : accountBusy && !account && !sessionInvalid ? (
+            <ActivityIndicator size="small" color={COLORS.accent} />
+          ) : sessionInvalid ? (
+            <>
+              <Text style={styles.accountPrimary}>以前のセッションは無効です</Text>
+              {accountError && (
+                <Text
+                  style={styles.accountError}
+                  accessibilityLiveRegion="polite"
+                >
+                  {accountError}
+                </Text>
+              )}
+              <TouchableOpacity
+                style={styles.accountButton}
+                onPress={onKeepLocalAfterInvalidSession}
+                disabled={accountBusy}
+              >
+                <Text style={styles.accountButtonText}>端末データを残して新しく始める</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.accountButton, styles.destructiveButton]}
+                onPress={onDiscardLocalAfterInvalidSession}
+                disabled={accountBusy}
+              >
+                <Text style={styles.destructiveText}>端末データも消して新しく始める</Text>
+              </TouchableOpacity>
+            </>
+          ) : !account ? (
+            <>
+              <Text style={styles.accountPrimary}>アカウント情報を取得できません</Text>
+              {accountError && (
+                <Text
+                  style={styles.accountError}
+                  accessibilityLiveRegion="polite"
+                >
+                  {accountError}
+                </Text>
+              )}
+              <TouchableOpacity
+                style={styles.accountButton}
+                onPress={() => {
+                  setAccountBusy(true);
+                  void refreshAccount();
+                }}
+                disabled={accountBusy}
+              >
+                <Text style={styles.accountButtonText}>再試行</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={styles.accountPrimary}>
+                {account.auth === 'google' ? account.email ?? 'Google連携済み' : '匿名アカウント'}
+              </Text>
+              <Text style={styles.apiHint}>
+                クラウド保存: {account.bookCount}冊
+              </Text>
+              {accountError && (
+                <Text
+                  style={styles.accountError}
+                  accessibilityLiveRegion="polite"
+                >
+                  {accountError}
+                </Text>
+              )}
+              {account.auth !== 'google' && (
+                <TouchableOpacity
+                  style={styles.accountButton}
+                  onPress={onGoogleLink}
+                  disabled={accountBusy}
+                >
+                  <Text style={styles.accountButtonText}>Googleと連携して復元可能にする</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.accountButton}
+                onPress={() => void runAccountAction(syncNow)}
+                disabled={accountBusy}
+              >
+                <Text style={styles.accountButtonText}>同期状態を更新</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.accountButton}
+                onPress={onDeletionTicket}
+                disabled={accountBusy}
+              >
+                <Text style={styles.accountButtonText}>ウェブ削除用コードを発行</Text>
+              </TouchableOpacity>
+              {account.auth === 'google' && (
+                <TouchableOpacity
+                  style={styles.accountButton}
+                  onPress={onSignOut}
+                  disabled={accountBusy}
+                >
+                  <Text style={styles.accountButtonText}>サインアウト</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.accountButton, styles.destructiveButton]}
+                onPress={onDeleteAccount}
+                disabled={accountBusy}
+              >
+                <Text style={styles.destructiveText}>アカウントを削除</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
+
+        {__DEV__ && (
+          <>
+            <Text style={styles.sectionTitle}>開発用API</Text>
+            <View style={styles.sliderCard}>
+              <Text style={styles.apiLabel}>WorkerのURL</Text>
+              <TextInput
+                style={styles.apiInput}
+                value={apiBaseUrl}
+                onChangeText={setApiBaseUrl}
+                placeholder="http://127.0.0.1:8787"
+                placeholderTextColor={COLORS.muted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+              />
+              <Text style={styles.apiHint}>
+                開発ビルドだけの上書きです。公開ビルドはEASで固定したURLだけを使います。
+              </Text>
+            </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  accountPrimary: { color: COLORS.text, fontSize: 15, fontWeight: '700' },
+  accountError: { color: '#b54b4b', fontSize: 12, lineHeight: 18, marginTop: 8 },
+  accountButton: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  accountButtonText: { color: COLORS.accent, fontSize: 13, fontWeight: '700' },
+  destructiveButton: { borderColor: '#b54b4b' },
+  destructiveText: { color: '#b54b4b', fontSize: 13, fontWeight: '700' },
   apiLabel: { color: COLORS.muted, fontSize: 11.5, fontWeight: '700', letterSpacing: 0.5 },
   apiInput: {
     marginTop: 8,

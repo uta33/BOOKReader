@@ -1,4 +1,5 @@
 import type { QuizItem } from '../types/book';
+import { authenticatedFetch } from './auth';
 
 /**
  * Extract a diagnosable error message from a failed response. Reads the body
@@ -33,7 +34,7 @@ export async function generateSummaryStream(
   guidance: string | undefined,
   onProgress: (text: string) => void,
 ): Promise<string> {
-  const res = await fetch('/api/generate-summary', {
+  const res = await authenticatedFetch('/api/generate-summary', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ topic, guidance }),
@@ -63,7 +64,7 @@ export interface QuizResponse {
 }
 
 export async function generateQuiz(script: string): Promise<QuizResponse> {
-  const res = await fetch('/api/quiz', {
+  const res = await authenticatedFetch('/api/quiz', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ script }),
@@ -76,7 +77,7 @@ export async function generateQuiz(script: string): Promise<QuizResponse> {
 
 /** OCR a batch of page images (base64 JPEG). Server-side Cloud Vision. */
 export async function ocrPages(images: string[]): Promise<string[]> {
-  const res = await fetch('/api/ocr', {
+  const res = await authenticatedFetch('/api/ocr', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ images }),
@@ -115,7 +116,7 @@ export async function synthesizeChunk(
   voiceName: string,
   pitch: number,
 ): Promise<ChunkTTSResponse> {
-  const res = await fetch('/api/tts', {
+  const res = await authenticatedFetch('/api/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ parts, voiceName, pitch }),
@@ -132,7 +133,7 @@ export async function synthesize(
   speakingRate: number,
   pitch: number,
 ): Promise<TTSResponse> {
-  const res = await fetch('/api/tts', {
+  const res = await authenticatedFetch('/api/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text, voiceName, speakingRate, pitch }),

@@ -10,8 +10,10 @@
     "build:android": "eas build --platform android",
     "build:all": "eas build --platform all",
     "typecheck": "tsc --noEmit",
-    "test:unit": "tsx tests/unit/migration.test.mts && tsx tests/unit/progress.test.mts && tsx tests/unit/isbn.test.mts && tsx tests/unit/lookup.test.mts && tsx tests/unit/summary.test.mts",
-    "test": "npm run typecheck && npm run test:unit"
+    "test:unit": "tsx tests/unit/migration.test.mts && tsx tests/unit/progress.test.mts && tsx tests/unit/isbn.test.mts && tsx tests/unit/lookup.test.mts && tsx tests/unit/summary.test.mts && tsx tests/unit/tts-request.test.mts && tsx tests/unit/sync.test.mts",
+    "test:web": "npm --prefix web run typecheck && npm --prefix web run test:unit",
+    "test:worker": "npm --prefix worker test",
+    "test": "npm run typecheck && npm run test:unit && npm run test:web && npm run test:worker"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -22,6 +24,7 @@
     "expo-blur": "~57.0.2",
     "expo-build-properties": "~57.0.7",
     "expo-camera": "~57.0.3",
+    "expo-clipboard": "~57.0.1",
     "expo-constants": "~57.0.7",
     "expo-crypto": "~57.0.1",
     "expo-document-picker": "~57.0.1",

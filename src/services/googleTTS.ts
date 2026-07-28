@@ -1,8 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { TTSOptions } from '../types/tts';
-
-const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_TTS_API_KEY ?? '';
-const TTS_ENDPOINT = 'https://texttospeech.googleapis.com/v1/text:synthesize';
+import { apiError, authenticatedFetch } from './authClient';
+import { buildWorkerTtsRequest } from './ttsRequest';
 
 export function audioCachePath(bookId: string, sentenceId: string): string {
   return `${FileSystem.cacheDirectory}audio/${bookId}/${sentenceId}.mp3`;
@@ -19,29 +18,21 @@ async function ensureDir(path: string) {
 }
 
 async function synthesize(text: string, options: TTSOptions): Promise<string> {
-  const body = {
-    input: { text },
-    voice: { languageCode: 'ja-JP', name: options.voiceName },
-    audioConfig: {
-      audioEncoding: 'MP3',
-      speakingRate: options.speakingRate,
-      pitch: options.pitch,
-    },
-  };
-
-  const res = await fetch(`${TTS_ENDPOINT}?key=${API_KEY}`, {
+  const res = await authenticatedFetch('/api/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(buildWorkerTtsRequest(text, options)),
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`TTS API error: ${res.status} ${err}`);
+    throw new Error(await apiError(res, `音声生成に失敗しました (${res.status})`));
   }
 
-  const json = await res.json();
-  return json.audioContent as string;
+  const json = (await res.json()) as
+    | { audioContent: string; fallback: false }
+    | { fallback: true };
+  if (json.fallback) throw new Error('音声サーバーが設定されていません。');
+  return json.audioContent;
 }
 
 export async function generateAndCache(
@@ -70,6 +61,12 @@ export async function generatePreview(
 
 export async function deleteCacheForBook(bookId: string): Promise<void> {
   const dir = `${FileSystem.cacheDirectory}audio/${bookId}`;
+  const info = await FileSystem.getInfoAsync(dir);
+  if (info.exists) await FileSystem.deleteAsync(dir, { idempotent: true });
+}
+
+export async function deleteAllAudioCache(): Promise<void> {
+  const dir = `${FileSystem.cacheDirectory}audio`;
   const info = await FileSystem.getInfoAsync(dir);
   if (info.exists) await FileSystem.deleteAsync(dir, { idempotent: true });
 }

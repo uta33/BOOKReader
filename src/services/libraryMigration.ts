@@ -39,7 +39,12 @@ function normalizeDogEar(raw: unknown, nextId: () => string): DogEar | null {
     quote,
     comment: str(r.comment),
     createdAt: num(r.createdAt, 0),
-    updatedAt: optNum(r.updatedAt),
+    updatedAt: Math.max(
+      optNum(r.updatedAt) ?? Math.max(1, num(r.createdAt, 0)),
+      optNum(r.deletedAt) ?? 0,
+    ),
+    deletedAt: optNum(r.deletedAt),
+    originDeviceId: str(r.originDeviceId) ?? 'legacy',
     photoUri: str(r.photoUri),
   };
 }
@@ -56,6 +61,12 @@ function normalizeLink(raw: unknown, nextId: () => string): DigitalLink | null {
     url,
     kind: LINK_KINDS.includes(kind as LinkKind) ? (kind as LinkKind) : 'other',
     createdAt: num(r.createdAt, 0),
+    updatedAt: Math.max(
+      optNum(r.updatedAt) ?? Math.max(1, num(r.createdAt, 0)),
+      optNum(r.deletedAt) ?? 0,
+    ),
+    deletedAt: optNum(r.deletedAt),
+    originDeviceId: str(r.originDeviceId) ?? 'legacy',
   };
 }
 
@@ -86,6 +97,12 @@ export function normalizeBook(raw: unknown): Book | null {
       ? (r.cachedSentenceIds as string[])
       : [],
     createdAt: num(r.createdAt, 0),
+    updatedAt: Math.max(
+      optNum(r.updatedAt) ?? Math.max(1, num(r.createdAt, 0)),
+      optNum(r.deletedAt) ?? 0,
+    ),
+    deletedAt: optNum(r.deletedAt),
+    originDeviceId: str(r.originDeviceId) ?? 'legacy',
 
     dogEars: Array.isArray(r.dogEars)
       ? r.dogEars

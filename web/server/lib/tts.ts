@@ -5,6 +5,10 @@ export interface TTSInput {
   pitch: number;
 }
 
+export interface TtsEnv {
+  GOOGLE_TTS_API_KEY?: string;
+}
+
 export type TTSResult =
   | { audioContent: string; fallback: false }
   | { fallback: true };
@@ -49,7 +53,10 @@ function escapeXml(s: string): string {
  * (highlight sync / tap-to-seek) out of a single seamless audio clip.
  * Speed is always 1.0 here — playback rate is applied client-side.
  */
-export async function synthesizeChunk(input: ChunkTTSInput): Promise<ChunkTTSResult> {
+export async function synthesizeChunk(
+  env: TtsEnv,
+  input: ChunkTTSInput,
+): Promise<ChunkTTSResult> {
   // Punctuation-only fragments (ellipsis lines, dangling 」 from quote
   // splitting) carry nothing to speak — drop them from the audio.
   const parts = (input.parts ?? [])
@@ -57,7 +64,7 @@ export async function synthesizeChunk(input: ChunkTTSInput): Promise<ChunkTTSRes
     .filter((p) => p.id && p.text && hasSpeech(p.text));
   if (parts.length === 0) throw new Error('parts are required');
 
-  const apiKey = process.env.GOOGLE_TTS_API_KEY;
+  const apiKey = env.GOOGLE_TTS_API_KEY;
   if (!apiKey) return { fallback: true };
 
   // Chirp3-HD rejects SSML (so no mark timepoints), pitch and speakingRate.
@@ -138,11 +145,11 @@ function ensureSentenceEnd(text: string): string {
   return text.replace(/[、，,]$/, '') + '。';
 }
 
-export async function synthesize(input: TTSInput): Promise<TTSResult> {
+export async function synthesize(env: TtsEnv, input: TTSInput): Promise<TTSResult> {
   const text = sanitizeForSpeech(input.text ?? '');
   if (!text) throw new Error('text is required');
 
-  const apiKey = process.env.GOOGLE_TTS_API_KEY;
+  const apiKey = env.GOOGLE_TTS_API_KEY;
   if (!apiKey) return { fallback: true };
 
   const body = {

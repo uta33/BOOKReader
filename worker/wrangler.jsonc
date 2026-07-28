@@ -1,0 +1,34 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bookreader-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-28",
+  "workers_dev": true,
+  "vars": {
+    "SUMMARY_MODEL": "claude-sonnet-4-6",
+    "ALLOWED_ORIGINS": "http://localhost:5173",
+    "PUBLIC_BASE_URL": "https://bookreader-api.hamasan.workers.dev",
+    "PRIVACY_CONTACT_EMAIL": "",
+    "GOOGLE_OAUTH_CLIENT_ID": ""
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bookreader",
+      "database_id": "27f81405-be59-4ed0-8a86-ec08d3ea64f4",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "JWKS_CACHE",
+      "id": "9567dfd837be4e459b462e75354d4e70"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "triggers": {
+    "crons": ["17 3 * * *"]
+  }
+}

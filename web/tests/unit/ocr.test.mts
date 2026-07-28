@@ -11,7 +11,7 @@ const ok = (cond: boolean, msg: string, extra?: unknown) => {
 };
 
 // --- ocrImages request shape (fetch mocked) ---
-process.env.GOOGLE_TTS_API_KEY = 'tts-key';
+const ttsEnv = { GOOGLE_TTS_API_KEY: 'tts-key' };
 let captured: { url: string; body: any } | null = null;
 (globalThis as any).fetch = async (url: string, init: any) => {
   captured = { url, body: JSON.parse(init.body) };
@@ -26,7 +26,7 @@ let captured: { url: string; body: any } | null = null;
   } as any;
 };
 
-const res = await ocrImages(['QUJD', 'REVG']);
+const res = await ocrImages(ttsEnv, ['QUJD', 'REVG']);
 ok(captured !== null && captured.url.includes('vision.googleapis.com/v1/images:annotate'), 'calls Vision annotate');
 ok(captured!.url.includes('key=tts-key'), 'falls back to the TTS key when no Vision key');
 ok(captured!.body.requests.length === 2, 'one request per image');
@@ -38,14 +38,11 @@ ok(captured!.body.requests[0].imageContext.languageHints[0] === 'ja', 'language 
 ok(!res.fallback && res.texts.join('|') === '一ページ目。|二ページ目。', 'texts returned per page');
 
 // dedicated Vision key takes precedence
-process.env.GOOGLE_VISION_API_KEY = 'vision-key';
-await ocrImages(['QUJD']);
+await ocrImages({ ...ttsEnv, GOOGLE_VISION_API_KEY: 'vision-key' }, ['QUJD']);
 ok(captured!.url.includes('key=vision-key'), 'GOOGLE_VISION_API_KEY wins over TTS key');
-delete process.env.GOOGLE_VISION_API_KEY;
 
 // no keys → fallback
-delete process.env.GOOGLE_TTS_API_KEY;
-const fb = await ocrImages(['QUJD']);
+const fb = await ocrImages({}, ['QUJD']);
 ok(fb.fallback === true, 'no key → fallback:true');
 
 // validation
@@ -57,9 +54,9 @@ const throws = async (fn: () => Promise<unknown>, msg: string) => {
     ok(true, msg);
   }
 };
-await throws(() => ocrImages([]), 'empty images rejected');
+await throws(() => ocrImages({}, []), 'empty images rejected');
 await throws(
-  () => ocrImages(Array(OCR_BATCH_LIMIT + 1).fill('QUJD')),
+  () => ocrImages({}, Array(OCR_BATCH_LIMIT + 1).fill('QUJD')),
   'over-batch-limit rejected',
 );
 

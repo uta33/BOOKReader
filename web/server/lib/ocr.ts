@@ -12,7 +12,12 @@ export const OCR_BATCH_LIMIT = 4;
 
 export type OcrResult = { texts: string[]; fallback: false } | { fallback: true };
 
-export async function ocrImages(images: string[]): Promise<OcrResult> {
+export interface OcrEnv {
+  GOOGLE_VISION_API_KEY?: string;
+  GOOGLE_TTS_API_KEY?: string;
+}
+
+export async function ocrImages(env: OcrEnv, images: string[]): Promise<OcrResult> {
   if (!Array.isArray(images) || images.length === 0) throw new Error('images are required');
   if (images.length > OCR_BATCH_LIMIT) {
     throw new Error(`images per request must be <= ${OCR_BATCH_LIMIT}`);
@@ -21,7 +26,7 @@ export async function ocrImages(images: string[]): Promise<OcrResult> {
     if (typeof img !== 'string' || !img) throw new Error('each image must be a base64 string');
   }
 
-  const apiKey = process.env.GOOGLE_VISION_API_KEY ?? process.env.GOOGLE_TTS_API_KEY;
+  const apiKey = env.GOOGLE_VISION_API_KEY ?? env.GOOGLE_TTS_API_KEY;
   if (!apiKey) return { fallback: true };
 
   const body = {

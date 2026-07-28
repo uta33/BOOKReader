@@ -47,7 +47,7 @@ ok(
 ok(chunkIndexFor(chunks, 5) === 2 && chunkIndexFor(chunks, 0) === 0, 'chunkIndexFor maps correctly');
 
 // --- synthesizeChunk request shape (fetch mocked) ---
-process.env.GOOGLE_TTS_API_KEY = 'test-key';
+const ttsEnv = { GOOGLE_TTS_API_KEY: 'test-key' };
 let captured: { url: string; body: any } | null = null;
 (globalThis as any).fetch = async (url: string, init: any) => {
   captured = { url, body: JSON.parse(init.body) };
@@ -63,7 +63,7 @@ let captured: { url: string; body: any } | null = null;
   } as any;
 };
 
-const result = await synthesizeChunk({
+const result = await synthesizeChunk(ttsEnv, {
   parts: [
     { id: 's0', text: '一文目です。' },
     { id: 's1', text: '二文目 & <テスト> です。（間）' },
@@ -90,23 +90,24 @@ ok(
 );
 
 // fallback without key
-delete process.env.GOOGLE_TTS_API_KEY;
-const fb = await synthesizeChunk({ parts: [{ id: 's0', text: 'テスト。' }], voiceName: 'x', pitch: 0 });
+const fb = await synthesizeChunk(
+  {},
+  { parts: [{ id: 's0', text: 'テスト。' }], voiceName: 'x', pitch: 0 },
+);
 ok(fb.fallback === true, 'no key → fallback:true');
 
 // empty parts throws
 let threw = false;
 try {
-  await synthesizeChunk({ parts: [], voiceName: 'x', pitch: 0 });
+  await synthesizeChunk({}, { parts: [], voiceName: 'x', pitch: 0 });
 } catch {
   threw = true;
 }
 ok(threw, 'empty parts → throws');
 
 // --- Chirp3-HD (最高音質): plain-text request, no SSML/pitch/rate, v1 ---
-process.env.GOOGLE_TTS_API_KEY = 'test-key';
 captured = null;
-const chirpRes = await synthesizeChunk({
+const chirpRes = await synthesizeChunk(ttsEnv, {
   parts: [
     { id: 's0', text: '一文目です。' },
     { id: 's1', text: '二文目です。' },
@@ -126,7 +127,7 @@ ok(!chirpRes.fallback && chirpRes.timepoints.length === 0, 'chirp result has emp
 // Conversational scripts: comma-bounded fragments and quote/ellipsis-only
 // lines must not merge into one endless "sentence" (Chirp3 rejects those).
 captured = null;
-await synthesizeChunk({
+await synthesizeChunk(ttsEnv, {
   parts: [
     { id: 's0', text: 'だから長い断片、' },
     { id: 's1', text: '句点なしの断片' },
@@ -145,7 +146,7 @@ ok(
 
 // SSML path also drops punctuation-only parts (no mark, nothing spoken).
 captured = null;
-await synthesizeChunk({
+await synthesizeChunk(ttsEnv, {
   parts: [
     { id: 's0', text: '…' },
     { id: 's1', text: '本文です。' },
@@ -159,8 +160,6 @@ ok(
   'ssml: punctuation-only part carries no mark',
   captured!.body.input.ssml,
 );
-delete process.env.GOOGLE_TTS_API_KEY;
-
 // --- character-proportional estimation (Chirp3 highlight fallback) ---
 const estChunk = buildChunks([
   mk(0, 'あ'.repeat(10)),

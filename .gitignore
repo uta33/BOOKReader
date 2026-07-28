@@ -11,6 +11,8 @@ npm-debug.*
 *.orig.*
 web-build/
 .env
+worker/.dev.vars
+worker/.wrangler/
 .DS_Store
 android/
 ios/
