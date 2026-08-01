@@ -109,9 +109,14 @@ export default function ShelfScreen() {
           </View>
 
           {activePurpose && (
-            <TouchableOpacity style={styles.purposeFilter} onPress={() => router.setParams({})}>
+            <TouchableOpacity
+              style={styles.purposeFilter}
+              onPress={() => router.replace('/shelf')}
+              accessibilityRole="button"
+              accessibilityLabel={`目的「${purposeLabel(activePurpose)}」の絞り込みを解除`}
+            >
               <Text style={styles.purposeFilterText}>
-                目的「{purposeLabel(activePurpose)}」で絞り込み中 ✕
+                目的「{purposeLabel(activePurpose)}」で絞り込み中　解除
               </Text>
             </TouchableOpacity>
           )}
