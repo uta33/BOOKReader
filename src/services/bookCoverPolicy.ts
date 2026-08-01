@@ -3,6 +3,8 @@ export const MAX_BOOK_COVER_BYTES = 5 * 1024 * 1024;
 const ALLOWED_HOSTS = new Set([
   'cover.openbd.jp',
   'covers.openlibrary.org',
+  'books.google.com',
+  'books.googleusercontent.com',
 ]);
 
 const MIME_EXTENSIONS: Readonly<Record<string, string>> = {

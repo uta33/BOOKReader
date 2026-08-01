@@ -17,7 +17,8 @@ import { COLORS } from '../../constants/colors';
 import { PURPOSES, type PurposeId } from '../../constants/purposes';
 import { BookCoverSearch } from '../../components/library/BookCoverSearch';
 import { createPaperBook } from '../../services/bookFactory';
-import { lookupIsbn, searchBookCovers } from '../../services/bookLookup';
+import { lookupIsbn } from '../../services/bookLookup';
+import { searchAvailableBookCovers } from '../../services/bookCoverSearch';
 import { persistBookCoverFromUrl } from '../../services/bookCoverImage';
 import { normalizeIsbn } from '../../services/isbn';
 import { useLibraryStore } from '../../store/libraryStore';
@@ -66,11 +67,11 @@ export default function NewBookScreen() {
     setLookupNote(null);
     void (async () => {
       const hit = await lookupIsbn(scannedIsbn, controller.signal);
-      const covers = await searchBookCovers({
+      const covers = await searchAvailableBookCovers({
         isbn: scannedIsbn,
         title: hit?.title,
         author: hit?.author,
-        knownOpenBdCoverUrl: hit?.coverUrl ?? null,
+        knownOpenBdCoverUrls: hit?.coverUrls ?? null,
       }, controller.signal);
       // 自動採用はISBN一致だけ。書名検索の候補は下の選択UIで本人に選んでもらう。
       const resolvedCover = covers.find((candidate) => candidate.exactIsbn)?.url;

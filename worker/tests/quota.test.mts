@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   DAILY_BUDGET_MICRO_USD,
+  DAILY_BOOK_COVER_SEARCH_LIMIT,
   MONTHLY_BUDGET_MICRO_USD,
   estimateCharge,
   utcBuckets,
@@ -20,5 +21,6 @@ assert.equal(estimateCharge('tts', 5_000), 80_000);
 assert.equal(estimateCharge('ocr', 4), 6_000);
 assert.equal(DAILY_BUDGET_MICRO_USD, 2_000_000);
 assert.equal(MONTHLY_BUDGET_MICRO_USD, 20_000_000);
+assert.equal(DAILY_BOOK_COVER_SEARCH_LIMIT, 100);
 
 console.log('quota.test.mts: passed');

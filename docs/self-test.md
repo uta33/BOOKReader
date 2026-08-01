@@ -19,7 +19,7 @@ APK内の秘密値スキャンと公開Workerの匿名認証・同期・削除�
 
 ## Androidへのインストール
 
-1. 最新候補 `.expo/READING-NOTE-1.7.1-cover-preview.apk` をUSBまたは同一LANでAndroidへ送る。
+1. 最新候補 `.expo/READING-NOTE-1.8.0-cover-search-preview.apk` をUSBまたは同一LANでAndroidへ送る。
 2. APKを開き、Androidに求められた場合だけ、そのブラウザ／ファイルアプリの
    「不明なアプリのインストール」を一時的に許可する。
 3. 旧版のローカル記録を残す場合は、旧版をアンインストールせず、そのままAPKを開いて

@@ -28,6 +28,7 @@ cd worker
 npx wrangler secret put ANTHROPIC_API_KEY
 npx wrangler secret put GOOGLE_TTS_API_KEY
 npx wrangler secret put GOOGLE_VISION_API_KEY
+npx wrangler secret put GOOGLE_BOOKS_API_KEY
 npx wrangler secret put GOOGLE_OAUTH_CLIENT_SECRET
 ```
 
@@ -45,6 +46,9 @@ https://bookreader-api.hamasan.workers.dev/v1/auth/google/callback
 
 秘密値をGit、APK、EAS、Vercel、`.dev.vars.example`へ書かない。登録名だけは
 `npx wrangler secret list` で確認できる。
+
+`GOOGLE_BOOKS_API_KEY` はBooks APIだけを許可した専用キーにする。既存のTTS／Vision
+キーの制限を広げない。書影検索はWorkerだけがキーを使い、アプリへは画像URLだけを返す。
 
 ## 更新デプロイ
 

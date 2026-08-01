@@ -10,10 +10,10 @@ import {
 } from 'react-native';
 import { COLORS } from '../../constants/colors';
 import {
-  searchBookCovers,
   type CoverCandidate,
   type CoverSource,
 } from '../../services/bookLookup';
+import { searchAvailableBookCovers } from '../../services/bookCoverSearch';
 
 interface Props {
   isbn?: string;
@@ -25,6 +25,8 @@ interface Props {
 
 function sourceLabel(source: CoverSource): string {
   if (source === 'openbd') return 'openBD';
+  if (source === 'google-books-isbn') return 'Google Books・ISBN一致';
+  if (source === 'google-books-search') return 'Google Books';
   if (source === 'openlibrary-isbn') return 'Open Library・ISBN一致';
   return 'Open Library';
 }
@@ -61,7 +63,7 @@ export function BookCoverSearch({ isbn, title, author, currentUrl, onSelect }: P
     setFailedUrls([]);
     setError(null);
     try {
-      const found = await searchBookCovers({ isbn, title, author }, controller.signal);
+      const found = await searchAvailableBookCovers({ isbn, title, author }, controller.signal);
       if (controller.signal.aborted) return;
       setCandidates(found);
       if (found.length === 0) {
@@ -109,7 +111,7 @@ export function BookCoverSearch({ isbn, title, author, currentUrl, onSelect }: P
       {searching && (
         <View style={styles.statusRow}>
           <ActivityIndicator size="small" color={COLORS.accent} />
-          <Text style={styles.hint}>openBDとOpen Libraryを照会しています。</Text>
+          <Text style={styles.hint}>openBD・Google Books・Open Libraryを照会しています。</Text>
         </View>
       )}
 
@@ -141,7 +143,7 @@ export function BookCoverSearch({ isbn, title, author, currentUrl, onSelect }: P
                   <Image
                     source={{ uri: candidate.url }}
                     style={styles.candidateImage}
-                    resizeMode="cover"
+                    resizeMode="contain"
                     onError={() => setFailedUrls((urls) => [...urls, candidate.url])}
                     accessibilityIgnoresInvertColors
                   />

@@ -17,11 +17,17 @@ export interface LookupResult {
   publisher?: string;
   pubdate?: string;
   coverUrl?: string;
+  coverUrls?: string[];
   /** どこから引けたか。UI の出典表示に使う。 */
   source: 'openbd' | 'ndl';
 }
 
-export type CoverSource = 'openbd' | 'openlibrary-isbn' | 'openlibrary-search';
+export type CoverSource =
+  | 'openbd'
+  | 'google-books-isbn'
+  | 'google-books-search'
+  | 'openlibrary-isbn'
+  | 'openlibrary-search';
 
 /** 表紙選択UIへ渡す候補。画像そのものは選択後に端末へ保存する。 */
 export interface CoverCandidate {
@@ -39,6 +45,8 @@ export interface CoverSearchInput {
   author?: string;
   /** undefined は未照会、null は照会済みで書影なし。 */
   knownOpenBdCoverUrl?: string | null;
+  /** openBD ONIXの複数書影を再照会せず引き継ぐ。 */
+  knownOpenBdCoverUrls?: string[] | null;
 }
 
 const OPENBD_ENDPOINT = 'https://api.openbd.jp/v1/get';
@@ -50,6 +58,76 @@ function clean(v: unknown): string | undefined {
   if (typeof v !== 'string') return undefined;
   const t = v.trim();
   return t.length > 0 ? t : undefined;
+}
+
+function asArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  return value === undefined || value === null ? [] : [value];
+}
+
+function trustedOpenBdCover(value: unknown): string | undefined {
+  const raw = clean(value);
+  if (!raw) return undefined;
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'https:' && url.hostname.toLowerCase() === 'cover.openbd.jp'
+      ? url.toString()
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** summaryだけでなく、ONIX SupportingResourceに残る書影もすべて拾う。 */
+export function shapeOpenBdCovers(
+  payload: unknown,
+  targetIsbn?: string,
+): CoverCandidate[] {
+  if (!Array.isArray(payload)) return [];
+  const target = isbnKey(targetIsbn);
+  const candidates: CoverCandidate[] = [];
+
+  for (const rawEntry of payload) {
+    if (!rawEntry || typeof rawEntry !== 'object') continue;
+    const entry = rawEntry as Record<string, unknown>;
+    const summary = entry.summary && typeof entry.summary === 'object'
+      ? entry.summary as Record<string, unknown>
+      : {};
+    const onix = entry.onix && typeof entry.onix === 'object'
+      ? entry.onix as Record<string, unknown>
+      : {};
+    const entryIsbn = isbnKey(summary.isbn) ?? isbnKey(onix.RecordReference);
+    const exactIsbn = Boolean(target && entryIsbn === target);
+    const title = clean(summary.title);
+    const author = clean(summary.author);
+    const urls: string[] = [];
+    const summaryCover = trustedOpenBdCover(summary.cover);
+    if (summaryCover) urls.push(summaryCover);
+
+    const collateral = onix.CollateralDetail;
+    if (collateral && typeof collateral === 'object') {
+      for (const rawResource of asArray(
+        (collateral as Record<string, unknown>).SupportingResource,
+      )) {
+        if (!rawResource || typeof rawResource !== 'object') continue;
+        const resource = rawResource as Record<string, unknown>;
+        // 01は表紙。07の商品写真はカバーとして自動採用しない。
+        if (clean(resource.ResourceContentType) !== '01') continue;
+        for (const rawVersion of asArray(resource.ResourceVersion)) {
+          if (!rawVersion || typeof rawVersion !== 'object') continue;
+          const url = trustedOpenBdCover(
+            (rawVersion as Record<string, unknown>).ResourceLink,
+          );
+          if (url) urls.push(url);
+        }
+      }
+    }
+
+    for (const url of Array.from(new Set(urls))) {
+      candidates.push({ url, source: 'openbd', title, author, exactIsbn });
+    }
+  }
+  return candidates;
 }
 
 /** openBD の生レスポンスから必要な項目を取り出す。純関数。 */
@@ -65,12 +143,14 @@ export function shapeOpenBd(payload: unknown): LookupResult | null {
   const title = clean(s.title);
   if (!title) return null;
 
+  const coverUrls = shapeOpenBdCovers(payload, clean(s.isbn)).map((candidate) => candidate.url);
   return {
     title,
     author: clean(s.author),
     publisher: clean(s.publisher),
     pubdate: clean(s.pubdate),
-    coverUrl: clean(s.cover),
+    coverUrl: coverUrls[0],
+    coverUrls: coverUrls.length > 0 ? coverUrls : undefined,
     source: 'openbd',
   };
 }
@@ -241,18 +321,23 @@ export async function searchBookCovers(
   const candidates: CoverCandidate[] = [];
   const isbn = isbnKey(input.isbn);
 
-  let openBdCover = input.knownOpenBdCoverUrl;
-  if (isbn && openBdCover === undefined) {
+  let openBdCovers = input.knownOpenBdCoverUrls;
+  if (openBdCovers === undefined && input.knownOpenBdCoverUrl !== undefined) {
+    openBdCovers = input.knownOpenBdCoverUrl ? [input.knownOpenBdCoverUrl] : null;
+  }
+  if (isbn && openBdCovers === undefined) {
     const payload = await fetchJson(
       `${OPENBD_ENDPOINT}?isbn=${encodeURIComponent(isbn)}`,
       signal,
       fetcher,
     );
-    openBdCover = shapeOpenBd(payload)?.coverUrl ?? null;
+    openBdCovers = shapeOpenBdCovers(payload, isbn).map((candidate) => candidate.url);
   }
-  if (openBdCover) {
+  for (const url of openBdCovers ?? []) {
+    const trustedUrl = trustedOpenBdCover(url);
+    if (!trustedUrl) continue;
     candidates.push({
-      url: openBdCover,
+      url: trustedUrl,
       source: 'openbd',
       title: clean(input.title),
       author: clean(input.author),
@@ -293,7 +378,7 @@ export async function searchBookCovers(
 
   return dedupeCoverCandidates(candidates)
     .sort((left, right) => Number(right.exactIsbn) - Number(left.exactIsbn))
-    .slice(0, 8);
+    .slice(0, 12);
 }
 
 /**

@@ -11,6 +11,7 @@ export interface UsageCharge {
 
 export const DAILY_BUDGET_MICRO_USD = 2_000_000;
 export const MONTHLY_BUDGET_MICRO_USD = 20_000_000;
+export const DAILY_BOOK_COVER_SEARCH_LIMIT = 100;
 
 export function utcBuckets(now = new Date()): { day: string; month: string } {
   const iso = now.toISOString();
@@ -77,6 +78,35 @@ export async function reserveUsage(
   } catch (error) {
     if (isCheckConstraintError(error)) {
       throw new ApiError(429, 'Daily quota or provider budget has been reached', 3_600);
+    }
+    throw error;
+  }
+}
+
+/** 書影APIの枯渇を防ぐ、利用者ごとの独立した日次上限。課金額には加算しない。 */
+export async function reserveBookCoverSearch(
+  env: Env,
+  userId: string,
+  now = new Date(),
+): Promise<void> {
+  const { day } = utcBuckets(now);
+  const timestamp = now.getTime();
+  try {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT OR IGNORE INTO quota_daily
+         (user_id, day, summary_count, quiz_count, tts_chars, ocr_pages, spend_microusd, updated_at)
+         VALUES (?, ?, 0, 0, 0, 0, 0, ?)`,
+      ).bind(userId, day, timestamp),
+      env.DB.prepare(
+        `UPDATE quota_daily
+         SET cover_search_count = cover_search_count + 1, updated_at = ?
+         WHERE user_id = ? AND day = ?`,
+      ).bind(timestamp, userId, day),
+    ]);
+  } catch (error) {
+    if (isCheckConstraintError(error)) {
+      throw new ApiError(429, 'Daily book cover search quota has been reached', 3_600);
     }
     throw error;
   }

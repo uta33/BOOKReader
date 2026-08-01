@@ -1,6 +1,7 @@
 # READING NOTE
 
-紙の本とPDF/TXTを同じ本棚で扱い、ISBNからの表紙検索・端末保存、マガジンノート、
+紙の本とPDF/TXTを同じ本棚で扱い、openBD・Google Books・Open Libraryを使った
+ISBN表紙検索と端末保存、マガジンノート、
 ドッグイヤー抜き書き、図・グラフ・写真の添付、100冊の進捗、AI要約、読み上げを
 まとめたExpo製Androidアプリです。
 
@@ -15,7 +16,7 @@
 - `docs/` — アーキテクチャ、デプロイ、自己テスト、Play向け文書
 
 プロバイダーのAPIキーはWorker Secretだけに保存します。APK、PWA、Vercelには
-Google TTS、Vision、Anthropicのキーを置きません。
+Google TTS、Vision、Books、Anthropicのキーを置きません。
 
 ## ローカル開発
 

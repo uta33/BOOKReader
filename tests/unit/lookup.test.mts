@@ -2,6 +2,7 @@
 // ネットワークポリシーで叩けないため、保存したサンプル形で固定する。
 const {
   shapeOpenBd,
+  shapeOpenBdCovers,
   shapeNdl,
   openLibraryCoverUrl,
   openLibraryCoverIdUrl,
@@ -43,6 +44,35 @@ ok(a?.publisher === '筑摩書房', 'openBD: publisher を取り出す');
 ok(a?.pubdate === '19860424', 'openBD: pubdate を取り出す');
 ok(a?.coverUrl === 'https://cover.openbd.jp/9784480020475.jpg', 'openBD: 書影URLを取り出す');
 ok(a?.source === 'openbd', 'openBD: source を openbd にする');
+
+const onixOnlyCover = [{
+  summary: { isbn: '9784480020475', title: 'ONIXだけの表紙', cover: '' },
+  onix: {
+    RecordReference: '9784480020475',
+    CollateralDetail: {
+      SupportingResource: [
+        {
+          ResourceContentType: '01',
+          ResourceVersion: [{
+            ResourceLink: 'https://cover.openbd.jp/onix-front.jpg',
+          }],
+        },
+        {
+          ResourceContentType: '07',
+          ResourceVersion: [{
+            ResourceLink: 'https://cover.openbd.jp/product-photo.jpg',
+          }],
+        },
+      ],
+    },
+  },
+}];
+const onixCovers = shapeOpenBdCovers(onixOnlyCover, '9784480020475');
+ok(onixCovers.length === 1, 'openBD: ONIXの表紙を拾い、商品写真は除く');
+ok(onixCovers[0]?.url.endsWith('/onix-front.jpg') === true, 'openBD: ONIX ResourceLinkを使う');
+ok(onixCovers[0]?.exactIsbn === true, 'openBD: ONIX表紙のISBN一致を判定する');
+ok(shapeOpenBd(onixOnlyCover)?.coverUrl === onixCovers[0]?.url,
+  'openBD: summary.coverが空でもONIX書影へフォールバック');
 
 // 未収録は [null] が返る — これが最頻出の「見つからない」形
 ok(shapeOpenBd([null]) === null, 'openBD: [null]（未収録）は null');

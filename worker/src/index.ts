@@ -8,7 +8,7 @@ import {
   validateOcrImages,
   validateTtsParts,
 } from './limits';
-import { estimateCharge, reserveUsage } from './quota';
+import { estimateCharge, reserveBookCoverSearch, reserveUsage } from './quota';
 import type { Env, WorkerVariables } from './types';
 import { generateSummaryStream } from './ai/summary';
 import { generateQuiz } from './ai/quiz';
@@ -34,6 +34,7 @@ import {
 } from './account';
 import { diagnosticsForUser } from './diagnostics';
 import { deleteAttachment, getAttachment, putAttachment } from './attachments';
+import { searchGoogleBookCovers } from './bookCovers';
 
 type AppEnv = { Bindings: Env; Variables: WorkerVariables };
 const app = new Hono<AppEnv>();
@@ -110,6 +111,7 @@ app.use('/v1/account/*', requireAuth);
 app.use('/v1/sync', requireAuth);
 app.use('/v1/diagnostics', requireAuth);
 app.use('/v1/attachments/*', requireAuth);
+app.use('/v1/books/*', requireAuth);
 app.use('/api/*', requireAuth);
 
 app.get('/v1/account', async (c) => {
@@ -140,6 +142,7 @@ app.get('/v1/account', async (c) => {
       quiz_count: 0,
       tts_chars: 0,
       ocr_pages: 0,
+      cover_search_count: 0,
     },
   });
 });
@@ -157,6 +160,21 @@ app.get('/v1/attachments/:id', (c) =>
 app.delete('/v1/attachments/:id', async (c) =>
   c.json(await deleteAttachment(c.env, c.get('user').id, c.req.param('id'))),
 );
+
+app.get('/v1/books/covers', async (c) => {
+  const isbn = optionalText(c.req.query('isbn'), 'isbn', 32);
+  const title = optionalText(c.req.query('title'), 'title', 200);
+  const author = optionalText(c.req.query('author'), 'author', 200);
+  if (!isbn && !title) throw new ApiError(400, 'isbn or title is required');
+  await reserveBookCoverSearch(c.env, c.get('user').id);
+  return c.json({
+    candidates: await searchGoogleBookCovers(
+      c.env,
+      { isbn, title, author },
+      c.req.raw.signal,
+    ),
+  });
+});
 
 app.post('/v1/sync', async (c) => {
   const body = await readJson<{

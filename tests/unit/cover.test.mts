@@ -11,8 +11,17 @@ assert.equal(
   isSupportedBookCoverUrl('https://covers.openlibrary.org/b/isbn/9784480020475-L.jpg'),
   true,
 );
+assert.equal(
+  isSupportedBookCoverUrl('https://books.google.com/books/content?id=abc&img=1'),
+  true,
+);
+assert.equal(
+  isSupportedBookCoverUrl('https://books.googleusercontent.com/books/content?id=abc'),
+  true,
+);
 assert.equal(isSupportedBookCoverUrl('http://cover.openbd.jp/book.jpg'), false);
 assert.equal(isSupportedBookCoverUrl('https://cover.openbd.jp.evil.example/book.jpg'), false);
+assert.equal(isSupportedBookCoverUrl('https://books.google.com.evil.example/book.jpg'), false);
 assert.equal(isSupportedBookCoverUrl('file:///private/book.jpg'), false);
 assert.equal(isSupportedBookCoverUrl('not-a-url'), false);
 

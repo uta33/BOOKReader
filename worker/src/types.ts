@@ -4,6 +4,7 @@ export interface Env {
   ATTACHMENTS: R2Bucket;
   ANTHROPIC_API_KEY?: string;
   GOOGLE_TTS_API_KEY?: string;
+  GOOGLE_BOOKS_API_KEY?: string;
   GOOGLE_VISION_API_KEY?: string;
   AUTH_HMAC_SECRET: string;
   GOOGLE_OAUTH_CLIENT_ID?: string;
