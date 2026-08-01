@@ -203,13 +203,14 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - 通信保護: 書誌・表紙検索と端末取り込みを20秒でタイムアウトし、登録画面が待ち続けない
 - package / version: `com.uta33.bookreader` / `1.7.1` (`versionCode 14`)
 - 破棄した中間版: EAS `38918907-ca68-4cfa-9992-7a9e0a68542f`（1.7.0 / 13）は最終点検前のため実機テストに使わない
-- EAS build: 最終ビルド後に記録
-- build page: 最終ビルド後に記録
-- APK SHA-256: 最終ビルド後に記録
-- ローカル成果物: `.expo/READING-NOTE-1.7.1-cover-preview.apk`（git管理外）
-- 署名: 最終ビルド後に既存証明書との一致を記録
-- 検証: `npm test`、Expo Doctor 20/20、Android Hermes export、openBD/Open Library実APIでISBN候補3件
-- APK展開検査: 最終ビルド後に記録
+- implementation commit: `e1b99e1`
+- EAS build: `cd7f9c53-e098-4021-812b-8785b54b40d7`（status `FINISHED`、2026-08-15まで）
+- build page: <https://expo.dev/accounts/utasan0811/projects/bookreader/builds/cd7f9c53-e098-4021-812b-8785b54b40d7>
+- APK SHA-256: `9CB3A4F70EECB60912DA0BCCC67AF376A424B390B37E801E415DF11B068B2772`
+- ローカル成果物: `.expo/READING-NOTE-1.7.1-cover-preview.apk`（git管理外、126,802,275 bytes）
+- 署名: APK v2、既存版と同じ証明書SHA-256 `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64efa2b3b`
+- 検証: `npm test`、Expo Doctor 20/20、Android Hermes export、openBD/Open Library実APIでISBN候補3件、EAS release build、配布URL HTTP 200
+- APK展開検査: openBD/Open Library/公開Worker URLを確認し、`AIza`／`GOCSPX`／`sk-ant-`／旧TTS環境変数名 0件
 - 実機未確認: 1.6.0からの上書き、JAN登録時の自動保存、既存本の候補選択、オフライン再表示、別端末同期後の再取得
 
 ## 自動preflight（2026-07-28）
