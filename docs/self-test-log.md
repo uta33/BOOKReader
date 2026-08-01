@@ -119,6 +119,19 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - 配布URL: HTTP 200を確認
 - 実機未確認: 撮影、画像選択、旧APK上書き、Vaultフォルダ権限、Markdownと画像の同時保存、Obsidian表示
 
+### 目的絞り込み解除修正版 1.3.1
+
+- 原因: `router.setParams({})` は既存の `purpose` パラメータを削除せず、本棚の目的絞り込みが残っていた
+- 修正: 「絞り込み中　解除」からパラメータなしの本棚へ `router.replace('/shelf')` し、読み上げ用アクセシビリティラベルも追加
+- package / version: `com.uta33.bookreader` / `1.3.1` (`versionCode 9`)
+- commit: `7cbf9e6`
+- EAS build: `e50d2984-5801-475e-89c1-ef5e0d5bad31`（status `FINISHED`、2026-08-15まで）
+- build page: <https://expo.dev/accounts/utasan0811/projects/bookreader/builds/e50d2984-5801-475e-89c1-ef5e0d5bad31>
+- APK SHA-256: `C5FBA2A6DF56F89DAB898C3B6798EAEC4F0985614A48C15C1079A83A952102CF`
+- 検証: `npm test`、EAS release build、APK v2署名、配布URL HTTP 200
+- APK展開検査: 公開Worker URLあり、`AIza`／`GOCSPX`／`sk-ant-` 0件
+- 実機未確認: 目的絞り込みの解除、1.3.0からの上書きインストール
+
 ## 自動preflight（2026-07-28）
 
 - [x] ルート／PWA／Workerの型検査とユニットテスト
