@@ -6,7 +6,7 @@
 
 Worker実装commit: `82289340a2b8d8c79e08ddaa80b56a3fb3f52719`
 
-Worker version: `ee303860-c90c-40ce-87bf-9c23a8f210f8`
+Worker version: `05d25035-c207-41b5-b78e-2924f0ac97fe`
 
 APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64efa2b3b`
 
@@ -59,6 +59,8 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - 検証: `npm test`、Expo Doctor 20/20、ローカルEAS release build、APK v2署名、package/version
 - APK展開検査: `AIza` 0件
 - 公開Worker実通信: Google TTSを制限付きAPIキーで有効化し、匿名発行 → TTS音声生成 → 試験アカウント削除まで成功
+- Google OAuth: Worker callback URIと新しいclient secretを設定し、認証開始200、client ID／redirect URI／PKCE／state／nonceを確認
+- Google認可画面: `redirect_uri_mismatch`なしでアカウント選択画面まで到達（試験ではアカウントを選択せず、紐付けは未実施）
 
 ## 自動preflight（2026-07-28）
 
@@ -85,7 +87,7 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 
 - [ ] Anthropic Secret
 - [x] Google TTS/Vision Secret（TTS/Visionだけに制限した既存キーをWorkerへ登録）
-- [ ] Google Web OAuth client ID/Secret
+- [x] Google Web OAuth client ID/Secret
 - [ ] プライバシーポリシー問い合わせ先
 - [x] EASログインと既存keystore照合
 - [x] 署名付きpreview APK

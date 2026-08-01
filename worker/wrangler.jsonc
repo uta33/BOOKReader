@@ -9,7 +9,7 @@
     "ALLOWED_ORIGINS": "http://localhost:5173",
     "PUBLIC_BASE_URL": "https://bookreader-api.hamasan.workers.dev",
     "PRIVACY_CONTACT_EMAIL": "",
-    "GOOGLE_OAUTH_CLIENT_ID": ""
+    "GOOGLE_OAUTH_CLIENT_ID": "766214041144-l1417p9klcuc71qja69lljoe3g1d7flv.apps.googleusercontent.com"
   },
   "d1_databases": [
     {
