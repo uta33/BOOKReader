@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import type { EventSubscription } from 'expo-modules-core';
+import * as Linking from 'expo-linking';
 import Slider from '@react-native-community/slider';
 import { COLORS } from '../../constants/colors';
 import { VOICES, PREVIEW_TEXT, VoiceOption } from '../../constants/voices';
@@ -41,10 +42,12 @@ export default function SettingsScreen() {
     pitch,
     speedStepIdx,
     apiBaseUrl,
+    obsidianVault,
     setVoice,
     setSpeedIdx,
     setPitch,
     setApiBaseUrl,
+    setObsidianVault,
   } = useSettingsStore();
 
   const [genderFilter, setGenderFilter] = useState<'all' | 'female' | 'male'>('all');
@@ -53,6 +56,7 @@ export default function SettingsScreen() {
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [accountBusy, setAccountBusy] = useState(true);
   const [accountError, setAccountError] = useState<string | null>(null);
+  const [obsidianError, setObsidianError] = useState<string | null>(null);
   const [sessionInvalid, setSessionInvalid] = useState(false);
   const playerRef = useRef<AudioPlayer | null>(null);
   const statusSubscriptionRef = useRef<EventSubscription | null>(null);
@@ -325,6 +329,19 @@ export default function SettingsScreen() {
     }
   }, [voiceName, speakingRate, pitch, stopCurrentPreview]);
 
+  const testObsidianConnection = useCallback(async () => {
+    setObsidianError(null);
+    const vault = obsidianVault.trim();
+    const uri = vault
+      ? `obsidian://open?vault=${encodeURIComponent(vault)}`
+      : 'obsidian://choose-vault';
+    try {
+      await Linking.openURL(uri);
+    } catch {
+      setObsidianError('Obsidianを開けませんでした。端末にObsidianをインストールしてください。');
+    }
+  }, [obsidianVault]);
+
   const filteredVoices =
     genderFilter === 'all' ? VOICES : VOICES.filter((v) => v.gender === genderFilter);
 
@@ -480,6 +497,40 @@ export default function SettingsScreen() {
             </Text>
           )}
         </TouchableOpacity>
+
+        <Text style={styles.sectionTitle}>Obsidian連携</Text>
+        <View style={styles.sliderCard}>
+          <Text style={styles.accountPrimary}>Vault名（任意）</Text>
+          <TextInput
+            style={styles.apiInput}
+            value={obsidianVault}
+            onChangeText={(value) => {
+              setObsidianError(null);
+              setObsidianVault(value);
+            }}
+            placeholder="未指定なら最後に開いたVault"
+            placeholderTextColor={COLORS.muted}
+            autoCorrect={false}
+            accessibilityLabel="Obsidian Vault名"
+          />
+          <Text style={styles.apiHint}>
+            本ごとのノート画面から、Vault内の「READING NOTE」フォルダへ書き出します。
+            Obsidianアプリが必要です。
+          </Text>
+          <TouchableOpacity
+            style={styles.accountButton}
+            onPress={() => void testObsidianConnection()}
+            accessibilityRole="button"
+            accessibilityLabel="Obsidianを開いて接続確認"
+          >
+            <Text style={styles.accountButtonText}>Obsidianを開いて接続確認</Text>
+          </TouchableOpacity>
+          {obsidianError && (
+            <Text style={styles.accountError} accessibilityLiveRegion="polite">
+              {obsidianError}
+            </Text>
+          )}
+        </View>
 
         <Text style={styles.sectionTitle}>アカウントと同期</Text>
         <View style={styles.sliderCard}>

@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
+import * as Linking from 'expo-linking';
 import { COLORS } from '../../constants/colors';
 import { TITLE_TEXT, QUOTE_TEXT } from '../../constants/typography';
 import { BOOKS_PER_VOLUME } from '../../constants/readingNote';
@@ -25,6 +27,7 @@ import { LinkRow } from '../../components/note/LinkRow';
 import { AddLinkModal } from '../../components/note/AddLinkModal';
 import { finishedSeq, notePosition } from '../../services/readingProgress';
 import { generateSummary, isSummaryApiConfigured } from '../../services/summaryApi';
+import { buildObsidianExport } from '../../services/obsidianExport';
 import { useLibraryStore } from '../../store/libraryStore';
 import { useSettingsStore } from '../../store/settingsStore';
 
@@ -47,8 +50,10 @@ export default function NoteScreen() {
   const [recap, setRecap] = useState(book?.recap ?? '');
   const [linkModal, setLinkModal] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [obsidianError, setObsidianError] = useState<string | null>(null);
 
   const apiBaseUrl = useSettingsStore((s) => s.apiBaseUrl);
+  const obsidianVault = useSettingsStore((s) => s.obsidianVault);
   // 設定が変わったら判定し直す（apiBaseUrl を依存に置くため useMemo）。
   const aiAvailable = useMemo(() => isSummaryApiConfigured(), [apiBaseUrl]);
 
@@ -105,6 +110,50 @@ export default function NoteScreen() {
       { text: 'キャンセル', style: 'cancel' },
       { text: '削除', style: 'destructive', onPress: () => removeLink(book.id, linkId) },
     ]);
+
+  const exportToObsidian = async () => {
+    setObsidianError(null);
+    const currentSummary = summary.trim() || undefined;
+    const currentRecap = recap.trim() || undefined;
+    const snapshot = {
+      ...book,
+      summary: currentSummary,
+      recap: currentRecap,
+    };
+
+    if (currentSummary !== book.summary || currentRecap !== book.recap) {
+      updateBook(book.id, {
+        summary: currentSummary,
+        recap: currentRecap,
+        recapCreatedAt: currentRecap ? (book.recapCreatedAt ?? Date.now()) : undefined,
+      });
+    }
+
+    try {
+      const result = buildObsidianExport(snapshot, obsidianVault, { overwrite: true });
+      if (result.viaClipboard) await Clipboard.setStringAsync(result.content);
+      await Linking.openURL(result.uri);
+    } catch {
+      setObsidianError(
+        'Obsidianへ送れませんでした。端末にObsidianがあることと、Vault名を確認してください。',
+      );
+    }
+  };
+
+  const confirmObsidianExport = () => {
+    Alert.alert(
+      'Obsidianへ書き出す',
+      'Vaultの「READING NOTE」フォルダへ保存します。同名ノートがある場合は内容を置き換えます。Obsidian側で追記した内容も置き換わるため確認してください。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '書き出す',
+          style: 'destructive',
+          onPress: () => void exportToObsidian(),
+        },
+      ],
+    );
+  };
 
   const finished = book.finishedAt != null;
   const subtitle = [book.author, book.publisher, book.totalPages ? `${book.totalPages}ページ` : null]
@@ -236,6 +285,25 @@ export default function NoteScreen() {
             )}
           </NoteSection>
 
+          <View style={styles.obsidianWrap}>
+            <TouchableOpacity
+              style={styles.obsidianBtn}
+              onPress={confirmObsidianExport}
+              accessibilityRole="button"
+              accessibilityLabel="この読書ノートをObsidianへ書き出す"
+            >
+              <Text style={styles.obsidianText}>Obsidianへ書き出す</Text>
+            </TouchableOpacity>
+            <Text style={styles.obsidianHint}>
+              書誌・目的・ドッグイヤー・まとめ・ふりかえり・リンクをMarkdownで保存します。
+            </Text>
+            {obsidianError && (
+              <Text style={styles.obsidianError} accessibilityLiveRegion="polite">
+                {obsidianError}
+              </Text>
+            )}
+          </View>
+
           {book.kind === 'content' && book.sentences.length > 0 && (
             <TouchableOpacity
               style={styles.listenBtn}
@@ -320,6 +388,18 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
   },
   listenText: { color: COLORS.accent, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+
+  obsidianWrap: { marginHorizontal: 20, gap: 8 },
+  obsidianBtn: {
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+    borderRadius: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+  },
+  obsidianText: { color: COLORS.accent, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  obsidianHint: { color: COLORS.muted, fontSize: 11.5, lineHeight: 18 },
+  obsidianError: { color: '#b54b4b', fontSize: 12, lineHeight: 18 },
 
   footer: { padding: 16, borderTopWidth: 1, borderTopColor: COLORS.border },
   finishBtn: {
