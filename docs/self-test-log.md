@@ -6,7 +6,7 @@
 
 Worker実装commit: `82289340a2b8d8c79e08ddaa80b56a3fb3f52719`
 
-Worker version: `862ec736-79e1-4fd9-9ab2-f28e349251fb`
+Worker version: `ee303860-c90c-40ce-87bf-9c23a8f210f8`
 
 APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64efa2b3b`
 
@@ -48,6 +48,18 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - APK展開検査: `AIza` 0件、`sk-ant-` 0件、旧TTS環境変数名 0件、公開Worker URLあり
 - 互換性: Expo slug、URL scheme、Android package、保存キー、バックアップenvelopeは変更なし
 
+### アイコン余白・TTS復旧版 1.1.1
+
+- 実機発見: Androidの円形マスクでアダプティブアイコンの本が大きく見え、外周に詰まっていた
+- 修正: foreground／monochromeを従来比82%へ縮小し、表示領域を約678×612pxから556×502pxへ変更
+- package / version: `com.uta33.bookreader` / `1.1.1` (`versionCode 5`)
+- 署名: 1.1.0と同じ証明書SHA-256を実APKで確認
+- APK SHA-256: `BEEB03E4F6304E2D16F224F1FA6C0330816F6C0623B3FBA6F053E68DFD82E24D`
+- ローカル成果物: `.expo/READING-NOTE-1.1.1-preview.apk`（git管理外）
+- 検証: `npm test`、Expo Doctor 20/20、ローカルEAS release build、APK v2署名、package/version
+- APK展開検査: `AIza` 0件
+- 公開Worker実通信: Google TTSを制限付きAPIキーで有効化し、匿名発行 → TTS音声生成 → 試験アカウント削除まで成功
+
 ## 自動preflight（2026-07-28）
 
 - [x] ルート／PWA／Workerの型検査とユニットテスト
@@ -72,7 +84,7 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 ## 完全機能テストの開始ブロッカー
 
 - [ ] Anthropic Secret
-- [ ] Google TTS/Vision Secret
+- [x] Google TTS/Vision Secret（TTS/Visionだけに制限した既存キーをWorkerへ登録）
 - [ ] Google Web OAuth client ID/Secret
 - [ ] プライバシーポリシー問い合わせ先
 - [x] EASログインと既存keystore照合

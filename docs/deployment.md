@@ -6,9 +6,9 @@
 - D1: `bookreader`（APAC）
 - KV: `JWKS_CACHE`
 - Cron: 毎日 `03:17 UTC`
-- 設定済みSecret: `AUTH_HMAC_SECRET`
+- 設定済みSecret: `AUTH_HMAC_SECRET`、`GOOGLE_TTS_API_KEY`
 - 検証済み実装commit: `82289340a2b8d8c79e08ddaa80b56a3fb3f52719`
-- 検証済みWorker version: `862ec736-79e1-4fd9-9ab2-f28e349251fb`
+- 検証済みWorker version: `ee303860-c90c-40ce-87bf-9c23a8f210f8`
 
 D1/KVの実IDは `worker/wrangler.jsonc` が正本。既存リソースを再作成しない。
 現在のWorker versionは次で確認する。
@@ -104,7 +104,8 @@ eas build --platform android --profile preview --local --non-interactive \
 
 2026-08-01にこの方法で1.0.2（versionCode 3）を生成し、1.0.1と証明書SHA-256が
 一致することを確認した。表示名とアイコンを更新した1.1.0（versionCode 4）も同じ鍵で
-生成し、証明書SHA-256の一致を確認した。
+生成し、証明書SHA-256の一致を確認した。アダプティブアイコンの余白を広げた1.1.1
+（versionCode 5）も同じ鍵で生成し、APK v2署名、パッケージ名、APIキー非混入を確認した。
 
 ## 一時D1への復元ドリル
 
