@@ -26,6 +26,12 @@ export interface DogEar {
   originDeviceId?: string;
   /** 図・グラフ・写真の端末内URI。同期ペイロードには含めない。 */
   photoUri?: string;
+  /** 復習で「覚えた」を選んだ段階。未復習は0相当。 */
+  reviewLevel?: number;
+  /** 最後に復習した時刻。 */
+  lastReviewedAt?: number;
+  /** 次に「今日のドッグイヤー」へ出す時刻。未設定は今すぐ対象。 */
+  nextReviewAt?: number;
 }
 
 export type LinkKind = 'notebooklm' | 'claude' | 'gdocs' | 'other';

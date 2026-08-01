@@ -41,6 +41,9 @@ const flattened = flattenLibrary(
           updatedAt: 3,
           originDeviceId: 'device-a',
           photoUri: 'file:///private/photo.jpg',
+          reviewLevel: 2,
+          lastReviewedAt: 100,
+          nextReviewAt: 200,
         },
       ],
     }),
@@ -54,6 +57,8 @@ assert.equal(
   'photoUri' in flattened.find((change) => change.entity === 'dogEar')!.data,
   false,
 );
+assert.equal(flattened.find((change) => change.entity === 'dogEar')!.data.reviewLevel, 2);
+assert.equal(flattened.find((change) => change.entity === 'dogEar')!.data.nextReviewAt, 200);
 
 const photoPreserved = applyServerChanges(
   [
@@ -76,7 +81,7 @@ const photoPreserved = applyServerChanges(
       entity: 'dogEar',
       id: 'dog-photo',
       bookId: 'book-1',
-      data: { page: 3, quote: '別端末で更新', createdAt: 2 },
+      data: { page: 3, quote: '別端末で更新', createdAt: 2, reviewLevel: 3, nextReviewAt: 500 },
       updatedAt: 4,
       originDeviceId: 'device-b',
     },
@@ -84,6 +89,8 @@ const photoPreserved = applyServerChanges(
 )[0];
 assert.equal(photoPreserved.dogEars[0].quote, '別端末で更新');
 assert.equal(photoPreserved.dogEars[0].photoUri, 'file:///private/diagram.png');
+assert.equal(photoPreserved.dogEars[0].reviewLevel, 3);
+assert.equal(photoPreserved.dogEars[0].nextReviewAt, 500);
 
 const olderRemote: SyncChange = {
   entity: 'book',

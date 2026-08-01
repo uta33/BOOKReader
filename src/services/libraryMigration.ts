@@ -46,6 +46,9 @@ function normalizeDogEar(raw: unknown, nextId: () => string): DogEar | null {
     deletedAt: optNum(r.deletedAt),
     originDeviceId: str(r.originDeviceId) ?? 'legacy',
     photoUri: str(r.photoUri),
+    reviewLevel: optNum(r.reviewLevel),
+    lastReviewedAt: optNum(r.lastReviewedAt),
+    nextReviewAt: optNum(r.nextReviewAt),
   };
 }
 

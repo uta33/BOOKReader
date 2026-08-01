@@ -36,6 +36,25 @@ export interface AccountInfo {
   quota: Record<string, unknown>;
 }
 
+export interface DiagnosticsInfo {
+  ok: true;
+  checkedAt: number;
+  services: {
+    sync: boolean;
+    summary: boolean;
+    quiz: boolean;
+    tts: boolean;
+    ocr: boolean;
+    googleAuth: boolean;
+  };
+  quota: {
+    day: string;
+    used: { summary: number; quiz: number; ttsChars: number; ocrPages: number };
+    limits: { summary: number; quiz: number; ttsChars: number; ocrPages: number };
+    estimatedUsd: number;
+  };
+}
+
 export type GoogleLinkResult =
   | { status: 'linked'; userId: string; email?: string }
   | {
@@ -56,6 +75,12 @@ export async function getAccount(): Promise<AccountInfo> {
     );
   }
   if (!response.ok) throw new Error(await apiError(response, 'アカウントを取得できませんでした。'));
+  return response.json();
+}
+
+export async function getDiagnostics(): Promise<DiagnosticsInfo> {
+  const response = await authenticatedFetch('/v1/diagnostics');
+  if (!response.ok) throw new Error(await apiError(response, '接続状態を確認できませんでした。'));
   return response.json();
 }
 

@@ -83,6 +83,9 @@ const modern = normalizeBook({
       quote: '引用',
       comment: 'メモ',
       photoUri: 'file:///data/user/0/com.uta33.bookreader/files/dog-ear-images/d1.png',
+      reviewLevel: 2,
+      lastReviewedAt: 100,
+      nextReviewAt: 200,
       createdAt: 2,
     },
     { id: 'd2', page: 5, quote: '', createdAt: 3 }, // 引用が空 → 落ちる
@@ -107,6 +110,8 @@ ok(
 ok(modern?.dogEars.length === 1, '引用の無いドッグイヤーと非オブジェクトは落ちる', modern?.dogEars);
 ok(modern?.dogEars[0].line === 6, 'L（行）が保持される');
 ok(modern?.dogEars[0].photoUri?.endsWith('/d1.png') === true, '端末内画像URIが保持される');
+ok(modern?.dogEars[0].reviewLevel === 2, '復習段階が保持される');
+ok(modern?.dogEars[0].nextReviewAt === 200, '次回復習時刻が保持される');
 ok(modern?.links.length === 2, 'url の無いリンクは落ちる', modern?.links);
 ok(modern?.links[1].kind === 'other', '未知の LinkKind は other に倒れる');
 ok(modern?.links[1].label === 'https://example.com/x', 'label 未指定なら url を使う');

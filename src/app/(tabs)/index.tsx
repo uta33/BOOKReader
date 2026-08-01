@@ -6,12 +6,11 @@ import { COLORS } from '../../constants/colors';
 import { TITLE_TEXT } from '../../constants/typography';
 import { BOOKS_PER_MONTH, GOAL_TOTAL_BOOKS } from '../../constants/readingNote';
 import { StatBar } from '../../components/common/StatBar';
-import { DogEarRow } from '../../components/note/DogEarRow';
 import { finishedBooks, finishedThisMonth } from '../../services/readingProgress';
+import { dueDogEars } from '../../services/dogEarReview';
 import { useLibraryStore } from '../../store/libraryStore';
-import type { DogEar } from '../../types/book';
 
-/** 3カードに固定して肥大させない。すべて他画面用に作った部品の再利用。 */
+/** 進捗・続き・復習の3用途に絞り、ホームを肥大させない。 */
 export default function HomeScreen() {
   const router = useRouter();
   const books = useLibraryStore((s) => s.books);
@@ -29,16 +28,11 @@ export default function HomeScreen() {
     [books],
   );
 
-  // 直近の抜き書き3件。どの本のものかも出す。
-  const recent = useMemo(() => {
-    const all: { dogEar: DogEar; bookId: string; bookTitle: string }[] = [];
-    for (const b of books) {
-      for (const d of b.dogEars) {
-        all.push({ dogEar: d, bookId: b.id, bookTitle: b.title });
-      }
-    }
-    return all.sort((a, b) => b.dogEar.createdAt - a.dogEar.createdAt).slice(0, 3);
-  }, [books]);
+  const reviewItems = useMemo(() => dueDogEars(books), [books]);
+  const dogEarCount = useMemo(
+    () => books.reduce((total, book) => total + book.dogEars.length, 0),
+    [books],
+  );
 
   if (books.length === 0) {
     return (
@@ -90,24 +84,33 @@ export default function HomeScreen() {
           </TouchableOpacity>
         )}
 
-        <View style={styles.block}>
-          <Text style={styles.eyebrow}>直近の抜き書き</Text>
-          {recent.length === 0 ? (
-            <Text style={styles.note}>
-              折ったページを開いて、線を引いた箇所を書き写しましょう。
-            </Text>
+        <TouchableOpacity
+          style={styles.block}
+          onPress={() => {
+            if (reviewItems.length > 0) router.push('/review' as never);
+            else router.push('/shelf');
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={reviewItems.length > 0 ? `今日の抜き書きを${reviewItems.length}件復習` : '本棚を開く'}
+        >
+          <View style={styles.reviewHead}>
+            <Text style={styles.eyebrow}>今日のドッグイヤー</Text>
+            {reviewItems.length > 0 && <Text style={styles.reviewCount}>{reviewItems.length}件</Text>}
+          </View>
+          {reviewItems[0] ? (
+            <>
+              <Text style={styles.recentBook} numberOfLines={1}>{reviewItems[0].bookTitle}</Text>
+              <Text style={styles.reviewQuote} numberOfLines={3}>「{reviewItems[0].dogEar.quote}」</Text>
+              <Text style={styles.note}>タップして復習を始める</Text>
+            </>
           ) : (
-            recent.map(({ dogEar, bookId, bookTitle }) => (
-              <View key={dogEar.id} style={styles.recentItem}>
-                <Text style={styles.recentBook} numberOfLines={1}>{bookTitle}</Text>
-                <DogEarRow
-                  dogEar={dogEar}
-                  onPress={() => router.push({ pathname: '/note/[id]', params: { id: bookId } })}
-                />
-              </View>
-            ))
+            <Text style={styles.note}>
+              {dogEarCount > 0
+                ? '今日の復習は完了しました。'
+                : '抜き書きを追加すると、毎日5件ずつ振り返れます。'}
+            </Text>
           )}
-        </View>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -140,8 +143,10 @@ const styles = StyleSheet.create({
   contTitle: { ...TITLE_TEXT, color: COLORS.text, fontWeight: '600' },
   note: { color: COLORS.muted, fontSize: 11.5, lineHeight: 18 },
 
-  recentItem: { gap: 2 },
+  reviewHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  reviewCount: { color: COLORS.shu, fontSize: 12, fontWeight: '700', fontVariant: ['tabular-nums'] },
   recentBook: { color: COLORS.muted, fontSize: 11 },
+  reviewQuote: { ...TITLE_TEXT, color: COLORS.text, fontSize: 14, lineHeight: 23 },
 
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 14 },
   emptyEmoji: { fontSize: 56 },

@@ -10,7 +10,7 @@
     "build:android": "eas build --platform android",
     "build:all": "eas build --platform all",
     "typecheck": "tsc --noEmit",
-    "test:unit": "tsx tests/unit/migration.test.mts && tsx tests/unit/progress.test.mts && tsx tests/unit/isbn.test.mts && tsx tests/unit/lookup.test.mts && tsx tests/unit/content-import.test.mts && tsx tests/unit/pdf-extractor.test.mts && tsx tests/unit/obsidian.test.mts && tsx tests/unit/summary.test.mts && tsx tests/unit/tts-request.test.mts && tsx tests/unit/sync.test.mts && tsx tests/unit/voices.test.mts",
+    "test:unit": "tsx tests/unit/migration.test.mts && tsx tests/unit/progress.test.mts && tsx tests/unit/isbn.test.mts && tsx tests/unit/lookup.test.mts && tsx tests/unit/library-search.test.mts && tsx tests/unit/dogear-review.test.mts && tsx tests/unit/content-import.test.mts && tsx tests/unit/pdf-extractor.test.mts && tsx tests/unit/obsidian.test.mts && tsx tests/unit/summary.test.mts && tsx tests/unit/tts-request.test.mts && tsx tests/unit/sync.test.mts && tsx tests/unit/voices.test.mts",
     "test:web": "npm --prefix web run typecheck && npm --prefix web run test:unit",
     "test:worker": "npm --prefix worker test",
     "test": "npm run typecheck && npm run test:unit && npm run test:web && npm run test:worker"

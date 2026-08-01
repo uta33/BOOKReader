@@ -32,6 +32,7 @@ import {
   publicHome,
   signOut,
 } from './account';
+import { diagnosticsForUser } from './diagnostics';
 
 type AppEnv = { Bindings: Env; Variables: WorkerVariables };
 const app = new Hono<AppEnv>();
@@ -106,6 +107,7 @@ app.use('/v1/auth/signout', requireAuth);
 app.use('/v1/account', requireAuth);
 app.use('/v1/account/*', requireAuth);
 app.use('/v1/sync', requireAuth);
+app.use('/v1/diagnostics', requireAuth);
 app.use('/api/*', requireAuth);
 
 app.get('/v1/account', async (c) => {
@@ -139,6 +141,10 @@ app.get('/v1/account', async (c) => {
     },
   });
 });
+
+app.get('/v1/diagnostics', async (c) =>
+  c.json(await diagnosticsForUser(c.env, c.get('user').id)),
+);
 
 app.post('/v1/sync', async (c) => {
   const body = await readJson<{

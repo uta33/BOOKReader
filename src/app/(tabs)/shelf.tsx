@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -17,6 +18,7 @@ import { useLibraryStore } from '../../store/libraryStore';
 import { useReaderStore } from '../../store/readerStore';
 import { usePdfExtraction } from '../../hooks/usePdfExtraction';
 import { deleteCacheForBook } from '../../services/googleTTS';
+import { bookMatchesQuery } from '../../services/librarySearch';
 
 type KindFilter = 'all' | 'paper' | 'content';
 
@@ -34,6 +36,7 @@ export default function ShelfScreen() {
   // 進捗画面の「10の目的」から絞り込んで飛んでくる。
   const { purpose } = useLocalSearchParams<{ purpose?: string }>();
   const [kind, setKind] = useState<KindFilter>('all');
+  const [query, setQuery] = useState('');
 
   const activePurpose = isPurposeId(purpose) ? purpose : undefined;
 
@@ -41,8 +44,9 @@ export default function ShelfScreen() {
     () =>
       books
         .filter((b) => (kind === 'all' ? true : b.kind === kind))
-        .filter((b) => (activePurpose ? b.purposes.includes(activePurpose) : true)),
-    [books, kind, activePurpose],
+        .filter((b) => (activePurpose ? b.purposes.includes(activePurpose) : true))
+        .filter((b) => bookMatchesQuery(b, query)),
+    [books, kind, activePurpose, query],
   );
 
   useEffect(() => {
@@ -108,6 +112,29 @@ export default function ShelfScreen() {
             ))}
           </View>
 
+          <View style={styles.searchRow}>
+            <TextInput
+              style={styles.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="書名・著者・抜き書き・要約を検索"
+              placeholderTextColor={COLORS.muted}
+              returnKeyType="search"
+              autoCorrect={false}
+              accessibilityLabel="本棚を横断検索"
+            />
+            {query.length > 0 && (
+              <TouchableOpacity
+                style={styles.searchClear}
+                onPress={() => setQuery('')}
+                accessibilityRole="button"
+                accessibilityLabel="検索語を消去"
+              >
+                <Text style={styles.searchClearText}>クリア</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           {activePurpose && (
             <TouchableOpacity
               style={styles.purposeFilter}
@@ -126,7 +153,9 @@ export default function ShelfScreen() {
             keyExtractor={(b) => b.id}
             contentContainerStyle={styles.list}
             ListEmptyComponent={
-              <Text style={styles.noMatch}>この条件に合う本がありません。</Text>
+              <Text style={styles.noMatch}>
+                {query.trim() ? '検索語に合う本がありません。' : 'この条件に合う本がありません。'}
+              </Text>
             }
             renderItem={({ item }) => (
               <BookCard
@@ -182,6 +211,30 @@ const styles = StyleSheet.create({
     padding: 3,
     borderRadius: 10,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 10,
+  },
+  searchInput: {
+    flex: 1,
+    minHeight: 44,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    color: COLORS.text,
+    fontSize: 14,
+  },
+  searchClear: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  searchClearText: { color: COLORS.accent, fontSize: 12.5, fontWeight: '700' },
   filterBtn: { flex: 1, paddingVertical: 6, borderRadius: 8 },
   filterBtnOn: { backgroundColor: COLORS.card },
   filterText: { color: COLORS.muted, fontSize: 12.5, textAlign: 'center' },

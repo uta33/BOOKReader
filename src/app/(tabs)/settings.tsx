@@ -32,12 +32,14 @@ import {
   createAccountDeletionTicket,
   deleteCurrentAccount,
   getAccount,
+  getDiagnostics,
   InvalidSessionError,
   linkGoogle,
   resetInvalidSession,
   resolveGoogleConflict,
   signOutAccount,
   type AccountInfo,
+  type DiagnosticsInfo,
   type GoogleLinkResult,
 } from '../../services/accountClient';
 
@@ -65,6 +67,9 @@ export default function SettingsScreen() {
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [accountBusy, setAccountBusy] = useState(true);
   const [accountError, setAccountError] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<DiagnosticsInfo | null>(null);
+  const [diagnosticsBusy, setDiagnosticsBusy] = useState(false);
+  const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null);
   const [obsidianError, setObsidianError] = useState<string | null>(null);
   const [sessionInvalid, setSessionInvalid] = useState(false);
   const playerRef = useRef<AudioPlayer | null>(null);
@@ -110,6 +115,20 @@ export default function SettingsScreen() {
     },
     [refreshAccount],
   );
+
+  const runDiagnostics = useCallback(async () => {
+    setDiagnosticsBusy(true);
+    setDiagnosticsError(null);
+    try {
+      await syncNow();
+      setDiagnostics(await getDiagnostics());
+    } catch (error) {
+      setDiagnostics(null);
+      setDiagnosticsError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setDiagnosticsBusy(false);
+    }
+  }, []);
 
   const resolveConflict = useCallback(
     (result: Extract<GoogleLinkResult, { status: 'choice_required' }>) => {
@@ -656,6 +675,24 @@ export default function SettingsScreen() {
               <Text style={styles.apiHint}>
                 クラウド保存: {account.bookCount}冊
               </Text>
+              <TouchableOpacity
+                style={styles.accountButton}
+                onPress={() => void runDiagnostics()}
+                disabled={diagnosticsBusy || accountBusy}
+                accessibilityRole="button"
+              >
+                {diagnosticsBusy ? (
+                  <ActivityIndicator size="small" color={COLORS.accent} />
+                ) : (
+                  <Text style={styles.accountButtonText}>接続と利用状況を確認</Text>
+                )}
+              </TouchableOpacity>
+              {diagnosticsError && (
+                <Text style={styles.accountError} accessibilityLiveRegion="polite">
+                  {diagnosticsError}
+                </Text>
+              )}
+              {diagnostics && <DiagnosticsPanel value={diagnostics} />}
               {accountError && (
                 <Text
                   style={styles.accountError}
@@ -746,6 +783,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   accountButtonText: { color: COLORS.accent, fontSize: 13, fontWeight: '700' },
+  diagnosticsPanel: {
+    marginTop: 12,
+    backgroundColor: COLORS.cardElevated,
+    borderRadius: 10,
+    padding: 12,
+    gap: 7,
+  },
+  diagnosticsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  diagnosticsLabel: { color: COLORS.mutedLight, fontSize: 12.5 },
+  diagnosticsValue: { fontSize: 12, fontWeight: '700' },
+  diagnosticsOk: { color: COLORS.done },
+  diagnosticsMissing: { color: COLORS.danger },
+  diagnosticsDivider: { height: 1, backgroundColor: COLORS.border, marginVertical: 4 },
+  diagnosticsUsage: { color: COLORS.mutedLight, fontSize: 11.5, fontVariant: ['tabular-nums'] },
+  diagnosticsDate: { color: COLORS.muted, fontSize: 10.5, marginTop: 2 },
   obsidianFolderLabel: { marginTop: 16 },
   destructiveButton: { borderColor: '#b54b4b' },
   destructiveText: { color: '#b54b4b', fontSize: 13, fontWeight: '700' },
@@ -871,3 +923,37 @@ const styles = StyleSheet.create({
   },
   fullPreviewText: { color: COLORS.onAccent, fontSize: 16, fontWeight: '700' },
 });
+
+function DiagnosticsPanel({ value }: { value: DiagnosticsInfo }) {
+  const serviceRows: [string, boolean][] = [
+    ['クラウド同期', value.services.sync],
+    ['AI要約・クイズ', value.services.summary && value.services.quiz],
+    ['音声読み上げ', value.services.tts],
+    ['画像OCR', value.services.ocr],
+    ['Google認証', value.services.googleAuth],
+  ];
+  return (
+    <View style={styles.diagnosticsPanel}>
+      {serviceRows.map(([label, available]) => (
+        <View key={label} style={styles.diagnosticsRow}>
+          <Text style={styles.diagnosticsLabel}>{label}</Text>
+          <Text style={[styles.diagnosticsValue, available ? styles.diagnosticsOk : styles.diagnosticsMissing]}>
+            {available ? '利用可' : '未設定'}
+          </Text>
+        </View>
+      ))}
+      <View style={styles.diagnosticsDivider} />
+      <Text style={styles.diagnosticsUsage}>
+        要約 {value.quota.used.summary}/{value.quota.limits.summary}　
+        クイズ {value.quota.used.quiz}/{value.quota.limits.quiz}
+      </Text>
+      <Text style={styles.diagnosticsUsage}>
+        音声 {value.quota.used.ttsChars.toLocaleString()}/{value.quota.limits.ttsChars.toLocaleString()}文字
+      </Text>
+      <Text style={styles.diagnosticsUsage}>
+        OCR {value.quota.used.ocrPages}/{value.quota.limits.ocrPages}枚　概算 ${value.quota.estimatedUsd.toFixed(3)}
+      </Text>
+      <Text style={styles.diagnosticsDate}>UTC {value.quota.day} の利用量</Text>
+    </View>
+  );
+}
