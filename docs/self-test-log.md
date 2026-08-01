@@ -149,6 +149,23 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - APK展開検査: 公開Worker URLあり、`AIza`／`GOCSPX`／`sk-ant-`／旧TTS環境変数名 0件
 - 実機未確認: 1.3.1からの上書きインストール、報告された実PDFの再取り込み、長い日本語PDFの処理時間
 
+### 大容量PDF・Markdown対応版 1.4.0
+
+- 大容量PDF: 上限を200MBへ拡張し、50MB超は端末ファイルを1MB単位で分割読み込みしてPDF.jsへ渡す
+- 安全策: 200MB超はコピー・解析前に拒否し、ページ本文の抽出は従来どおり直列処理
+- Markdown: `.md`／`.markdown`を追加し、見出し・本文・リンク表示名を残しながらコード、URL、装飾記号を読み上げ向け本文から除去
+- ファイル選択: Androidのファイル管理アプリごとのMarkdown MIME差を避け、選択後に拡張子を厳密検証
+- package / version: `com.uta33.bookreader` / `1.4.0` (`versionCode 11`)
+- commit: `7b129cb`
+- EAS build: `a530f17b-5e44-46de-9b8c-8308cca84406`（status `FINISHED`、2026-08-15まで）
+- build page: <https://expo.dev/accounts/utasan0811/projects/bookreader/builds/a530f17b-5e44-46de-9b8c-8308cca84406>
+- APK SHA-256: `3C984CC2982857F9E87025B31B3451BF96511D6D6682CCCD757DC752C4A107A9`
+- ローカル成果物: `.expo/READING-NOTE-1.4.0-large-pdf-markdown-preview.apk`（git管理外、126,726,851 bytes）
+- 署名: APK v2、既存版と同じ証明書SHA-256 `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64efa2b3b`
+- 検証: `npm test`、大容量range／200MB上限／Markdown変換の回帰テスト、Expo Doctor 20/20、Android Hermes export、EAS release build、配布URL HTTP 200
+- APK展開検査: 公開Worker URL 1件、`AIza`／`GOCSPX`／`sk-ant-`／旧TTS環境変数名 0件
+- 実機未確認: 1.3.2からの上書きインストール、実際の50MB超PDF、実Markdown、端末性能ごとの処理時間
+
 ## 自動preflight（2026-07-28）
 
 - [x] ルート／PWA／Workerの型検査とユニットテスト
