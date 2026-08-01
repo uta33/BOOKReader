@@ -2,7 +2,7 @@
 
 開始日: 未開始（2026-08-01に単体preview APKを生成。AIプロバイダー設定後に14日計測を開始）
 
-アプリ実装commit: `d0b31c34e0d4e5c2dbc09ef8fc7f5fda56fb5336`
+アプリ実装commit: `c877b4eb188f7a97c3e1fc04d92e45735307d469`
 
 Worker実装commit: `82289340a2b8d8c79e08ddaa80b56a3fb3f52719`
 
@@ -98,6 +98,27 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - APK展開検査: `obsidian://`と`READING NOTE`あり、`AIza` 0件、`GOCSPX` 0件、公開Worker URLあり
 - 実機未確認: Obsidian接続、短文作成、同名更新、長文クリップボード経路
 
+### 画像添付・Obsidian埋め込み版 1.3.0
+
+- 抜き書き: カメラ撮影または端末内画像を1件添付し、元比率・無切り抜き・無圧縮で表示
+- 端末保存: ImagePickerの一時URIをアプリのdocument領域へコピーし、原本は変更しない
+- Obsidian: 初回にAndroidのシステム画面でVaultルートを選択し、永続フォルダ権限を保持
+- 保存先: `READING NOTE/<書名>.md` と `READING NOTE/_attachments/<決定的な画像名>`
+- Markdown: 各ドッグイヤーへ `![[READING NOTE/_attachments/<画像名>|720]]` を自動挿入
+- データ境界: 画像URIは旧データ移行で保持するがCloudflare同期ペイロードには含めず、別端末では再添付
+- package / version: `com.uta33.bookreader` / `1.3.0` (`versionCode 8`)
+- 署名: 1.2.0以前と同じ証明書SHA-256をローカル／EASの両APKで確認
+- ローカルAPK SHA-256: `41D27DB5C3A30D1B41728E8B4EA654CDB0819CE541842566A2E9291F9A0059E1`
+- EAS APK SHA-256: `E477D3D1F9F3EF270EBD288D862DBA8BE5A085C3CE4948C47B53013451AC8171`
+- ローカル成果物: `.expo/READING-NOTE-1.3.0-images-preview.apk`（git管理外）
+- EAS build: `a0b8f651-c307-485f-97e0-1f1d65ad8266`（status `FINISHED`、2026-08-15まで）
+- build page: <https://expo.dev/accounts/utasan0811/projects/bookreader/builds/a0b8f651-c307-485f-97e0-1f1d65ad8266>
+- 検証: `npm test`、Expo Doctor 20/20、Android export、ローカル／クラウドEAS release build、APK v2署名
+- APK展開検査: ImagePicker native moduleあり、画像埋め込み文字列と公開Worker URLあり、`AIza`／`GOCSPX`／`sk-ant-` 0件
+- Android manifest: CAMERAあり、旧Android向けREAD/WRITE_EXTERNAL_STORAGEはmaxSdkVersion 32、RECORD_AUDIOなし
+- 配布URL: HTTP 200を確認
+- 実機未確認: 撮影、画像選択、旧APK上書き、Vaultフォルダ権限、Markdownと画像の同時保存、Obsidian表示
+
 ## 自動preflight（2026-07-28）
 
 - [x] ルート／PWA／Workerの型検査とユニットテスト
@@ -140,6 +161,9 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - [ ] content本2冊
 - [ ] 合計10冊
 - [ ] ドッグイヤー20件／3冊
+- [ ] ドッグイヤーへ撮影画像／端末内画像を添付し、再起動後も表示
+- [ ] Vaultフォルダを選び、Markdownと`_attachments`画像を同時保存
+- [ ] Obsidianで図・グラフがノート内に表示
 - [ ] 2実機の和集合
 - [ ] 読書位置MAX
 - [ ] オフライン復帰
