@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,8 @@ import { ScreenHeader } from '../../components/common/ScreenHeader';
 import { PurposeChips } from '../../components/common/PurposeChips';
 import { StarRating } from '../../components/common/StarRating';
 import { NoteSection } from '../../components/note/NoteSection';
+import { BookCover } from '../../components/library/BookCover';
+import { BookCoverSearch } from '../../components/library/BookCoverSearch';
 import { DogEarRow } from '../../components/note/DogEarRow';
 import { LinkRow } from '../../components/note/LinkRow';
 import { AddLinkModal } from '../../components/note/AddLinkModal';
@@ -37,12 +39,14 @@ import { useLibraryStore } from '../../store/libraryStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { deleteAttachment } from '../../services/attachmentClient';
 import { removeManagedDogEarImage } from '../../services/dogEarImage';
+import { persistBookCoverFromUrl } from '../../services/bookCoverImage';
 
 export default function NoteScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const books = useLibraryStore((s) => s.books);
   const updateBook = useLibraryStore((s) => s.updateBook);
+  const setBookLocalFields = useLibraryStore((s) => s.setBookLocalFields);
   const removeDogEar = useLibraryStore((s) => s.removeDogEar);
   const addLink = useLibraryStore((s) => s.addLink);
   const removeLink = useLibraryStore((s) => s.removeLink);
@@ -58,6 +62,7 @@ export default function NoteScreen() {
   const [linkModal, setLinkModal] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [obsidianError, setObsidianError] = useState<string | null>(null);
+  const coverCachingRef = useRef<string | null>(null);
 
   const apiBaseUrl = useSettingsStore((s) => s.apiBaseUrl);
   const obsidianVault = useSettingsStore((s) => s.obsidianVault);
@@ -212,6 +217,30 @@ export default function NoteScreen() {
     .filter(Boolean)
     .join(' · ');
 
+  const cacheRemoteCover = (url: string) => {
+    if (book.coverLocalUri || coverCachingRef.current === url) return;
+    coverCachingRef.current = url;
+    void persistBookCoverFromUrl(url, book.id)
+      .then((coverLocalUri) => setBookLocalFields(book.id, { coverLocalUri }))
+      .catch(() => undefined)
+      .finally(() => {
+        coverCachingRef.current = null;
+      });
+  };
+
+  const selectCover = async (candidate: { url: string }) => {
+    coverCachingRef.current = candidate.url;
+    try {
+      const coverLocalUri = await persistBookCoverFromUrl(candidate.url, book.id);
+      updateBook(book.id, { coverUrl: candidate.url });
+      setBookLocalFields(book.id, { coverLocalUri });
+    } catch {
+      throw new Error('表紙画像を取り込めませんでした。通信を確認して、もう一度選んでください。');
+    } finally {
+      coverCachingRef.current = null;
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScreenHeader onBack={() => router.back()} flush />
@@ -231,21 +260,45 @@ export default function NoteScreen() {
                   : ''}
               </Text>
             </View>
-            <Text style={styles.hashiraTitle}>{book.title}</Text>
-            {subtitle.length > 0 && <Text style={styles.hashiraBy}>{subtitle}</Text>}
-            <View style={styles.hashiraFoot}>
-              <StarRating
-                value={book.rating}
-                onAccent
-                onChange={(v) => updateBook(book.id, { rating: v || undefined })}
+            <View style={styles.hashiraBookRow}>
+              <BookCover
+                book={book}
+                width={72}
+                height={96}
+                borderRadius={7}
+                onRemoteLoaded={cacheRemoteCover}
+                onLocalMissing={() => setBookLocalFields(book.id, { coverLocalUri: undefined })}
               />
-              {finished && (
-                <View style={styles.finishedBadge}>
-                  <Text style={styles.finishedBadgeText}>✓ 読了</Text>
+              <View style={styles.hashiraBookText}>
+                <Text style={styles.hashiraTitle}>{book.title}</Text>
+                {subtitle.length > 0 && <Text style={styles.hashiraBy}>{subtitle}</Text>}
+                <View style={styles.hashiraFoot}>
+                  <StarRating
+                    value={book.rating}
+                    onAccent
+                    onChange={(v) => updateBook(book.id, { rating: v || undefined })}
+                  />
+                  {finished && (
+                    <View style={styles.finishedBadge}>
+                      <Text style={styles.finishedBadgeText}>✓ 読了</Text>
+                    </View>
+                  )}
                 </View>
-              )}
+              </View>
             </View>
           </View>
+
+          {book.kind === 'paper' && (
+            <NoteSection title="表紙画像">
+              <BookCoverSearch
+                isbn={book.isbn}
+                title={book.title}
+                author={book.author}
+                currentUrl={book.coverUrl}
+                onSelect={selectCover}
+              />
+            </NoteSection>
+          )}
 
           <NoteSection title="読む目的">
             <PurposeChips
@@ -407,6 +460,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1.6,
     opacity: 0.82,
   },
+  hashiraBookRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 4 },
+  hashiraBookText: { flex: 1, gap: 5 },
   hashiraTitle: { ...TITLE_TEXT, color: COLORS.onAccent, fontWeight: '600' },
   hashiraBy: { color: COLORS.onAccent, fontSize: 12, opacity: 0.82 },
   hashiraFoot: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },

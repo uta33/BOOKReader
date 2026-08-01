@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,11 @@ import { useReaderStore } from '../../store/readerStore';
 import { usePdfExtraction } from '../../hooks/usePdfExtraction';
 import { deleteCacheForBook } from '../../services/googleTTS';
 import { bookMatchesQuery } from '../../services/librarySearch';
+import {
+  persistBookCoverFromUrl,
+  removeManagedBookCover,
+} from '../../services/bookCoverImage';
+import type { Book } from '../../types/book';
 
 type KindFilter = 'all' | 'paper' | 'content';
 
@@ -30,13 +35,14 @@ const FILTERS: { id: KindFilter; label: string }[] = [
 
 export default function ShelfScreen() {
   const router = useRouter();
-  const { books, removeBook, updateBook } = useLibraryStore();
+  const { books, removeBook, updateBook, setBookLocalFields } = useLibraryStore();
   const { currentBookId } = useReaderStore();
   const { pickAndImport, loading, error } = usePdfExtraction();
   // 進捗画面の「10の目的」から絞り込んで飛んでくる。
   const { purpose } = useLocalSearchParams<{ purpose?: string }>();
   const [kind, setKind] = useState<KindFilter>('all');
   const [query, setQuery] = useState('');
+  const coverCachingRef = useRef(new Set<string>());
 
   const activePurpose = isPurposeId(purpose) ? purpose : undefined;
 
@@ -74,17 +80,31 @@ export default function ShelfScreen() {
   };
 
   const confirmDelete = (id: string, title: string) => {
-    Alert.alert(`「${title}」を削除`, '音声キャッシュも全て削除されます。', [
+    const book = books.find((item) => item.id === id);
+    Alert.alert(`「${title}」を削除`, '音声キャッシュと端末保存した表紙も削除されます。', [
       { text: 'キャンセル', style: 'cancel' },
       {
         text: '削除',
         style: 'destructive',
         onPress: async () => {
           await deleteCacheForBook(id);
+          removeManagedBookCover(book?.coverLocalUri);
           removeBook(id);
         },
       },
     ]);
+  };
+
+  const resolveCover = (book: Book, coverUrl: string) => {
+    if (book.coverUrl !== coverUrl) updateBook(book.id, { coverUrl });
+    if ((book.coverUrl === coverUrl && book.coverLocalUri) || coverCachingRef.current.has(book.id)) {
+      return;
+    }
+    coverCachingRef.current.add(book.id);
+    void persistBookCoverFromUrl(coverUrl, book.id)
+      .then((coverLocalUri) => setBookLocalFields(book.id, { coverLocalUri }))
+      .catch(() => undefined)
+      .finally(() => coverCachingRef.current.delete(book.id));
   };
 
   return (
@@ -163,9 +183,8 @@ export default function ShelfScreen() {
                 isLastOpened={item.id === currentBookId}
                 onPress={() => openBook(item.id)}
                 onLongPress={() => confirmDelete(item.id, item.title)}
-                onCoverResolved={(coverUrl) => {
-                  if (item.coverUrl !== coverUrl) updateBook(item.id, { coverUrl });
-                }}
+                onCoverResolved={(coverUrl) => resolveCover(item, coverUrl)}
+                onLocalCoverMissing={() => setBookLocalFields(item.id, { coverLocalUri: undefined })}
               />
             )}
           />

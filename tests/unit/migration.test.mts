@@ -74,6 +74,8 @@ const modern = normalizeBook({
   createdAt: 1,
   isbn: '9784622006015',
   author: 'V.E.フランクル',
+  coverUrl: 'https://cover.openbd.jp/9784622006015.jpg',
+  coverLocalUri: 'file:///data/user/0/com.uta33.bookreader/files/book-covers/paper_1.jpg',
   purposes: ['thinking', 'nonexistent-purpose', 'newself'],
   dogEars: [
     {
@@ -104,6 +106,8 @@ const modern = normalizeBook({
 ok(modern !== null, '紙の本レコードが通る');
 ok(modern?.kind === 'paper', 'kind: paper は明示されたときだけ保たれる');
 ok(modern?.isbn === '9784622006015', 'isbn が保持される');
+ok(modern?.coverUrl?.startsWith('https://cover.openbd.jp/') === true, '同期用の書影URLが保持される');
+ok(modern?.coverLocalUri?.includes('/book-covers/') === true, '端末内の書影URIが保持される');
 ok(
   modern?.purposes.length === 2 && !modern.purposes.includes('nonexistent-purpose' as never),
   '未知の purpose id は捨てられる',

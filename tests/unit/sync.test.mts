@@ -54,6 +54,7 @@ const flattened = flattenLibrary(
 const flattenedBook = flattened.find((change) => change.entity === 'book')!;
 assert.equal('sentences' in flattenedBook.data, false);
 assert.equal('uri' in flattenedBook.data, false);
+assert.equal('coverLocalUri' in flattenedBook.data, false);
 assert.equal(
   'photoUri' in flattened.find((change) => change.entity === 'dogEar')!.data,
   false,
@@ -164,6 +165,45 @@ const clearedOptional = applyServerChanges(
 )[0];
 assert.equal(clearedOptional.recap, undefined);
 assert.equal(clearedOptional.title, 'サーバー正本');
+
+const coverPreserved = applyServerChanges(
+  [book({
+    kind: 'paper',
+    coverUrl: 'https://cover.openbd.jp/same.jpg',
+    coverLocalUri: 'file:///private/book-covers/book-1.jpg',
+    updatedAt: 100,
+  })],
+  [{
+    entity: 'book',
+    id: 'book-1',
+    data: {
+      title: 'サーバー更新本',
+      kind: 'paper',
+      coverUrl: 'https://cover.openbd.jp/same.jpg',
+      createdAt: 1,
+    },
+    updatedAt: 101,
+    originDeviceId: 'device-b',
+  }],
+)[0];
+assert.equal(coverPreserved.coverLocalUri, 'file:///private/book-covers/book-1.jpg');
+
+const coverInvalidated = applyServerChanges(
+  [coverPreserved],
+  [{
+    entity: 'book',
+    id: 'book-1',
+    data: {
+      title: '別の表紙へ更新',
+      kind: 'paper',
+      coverUrl: 'https://covers.openlibrary.org/b/id/2-L.jpg',
+      createdAt: 1,
+    },
+    updatedAt: 102,
+    originDeviceId: 'device-c',
+  }],
+)[0];
+assert.equal(coverInvalidated.coverLocalUri, undefined);
 
 const clockAdjusted = applyServerChanges(
   [book({ updatedAt: 999_999, title: '時計ずれ端末' })],

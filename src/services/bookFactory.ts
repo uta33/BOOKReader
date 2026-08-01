@@ -12,6 +12,7 @@ interface PaperInput {
   pubdate?: string;
   isbn?: string;
   coverUrl?: string;
+  coverLocalUri?: string;
   bookstore?: string;
   totalPages?: number;
   purposes?: PurposeId[];
@@ -38,6 +39,7 @@ export function createPaperBook(input: PaperInput): Book {
     publisher: input.publisher,
     pubdate: input.pubdate,
     coverUrl: input.coverUrl,
+    coverLocalUri: input.coverLocalUri,
     bookstore: input.bookstore,
   };
 }

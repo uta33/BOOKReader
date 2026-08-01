@@ -191,6 +191,27 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - APK展開検査: `SEND text/*`／`image/*`、expo-sharing native module、公開Worker URL 1件、`AIza`／`GOCSPX`／`sk-ant-`／旧TTS環境変数名 0件
 - 実機未確認: 1.4.0からの上書き、Android共有3種、別端末の画像復元、Obsidianの追記保持、500枚・250MB到達時の表示
 
+### 紙の本・表紙検索版 1.7.1
+
+- 自動検索: JAN/ISBN登録時にopenBDを優先し、Open LibraryのISBN照会とSearch APIを候補へ追加
+- 既存本: 読書ノートの「表紙画像」から再検索し、複数候補を見て選択可能
+- 表示: 端末保存画像、同期URL、ISBN直引きの順で本棚と読書ノートにフォールバック表示
+- 端末保存: 選択した画像をアプリのdocument領域へ取り込み、5MB/枚・HTTPS・公式2ドメインに限定
+- 同期: 公開URLだけをD1へ送り、端末URIは送らない。同じURLの同期更新では端末コピーを保持し、URL変更時は破棄
+- 既存データ: `bookreader_library` の素の配列形式を維持し、`coverLocalUri` は任意フィールドとして正規化
+- 自動採用: ISBN一致候補だけを採用し、書名だけの曖昧な候補は本人の選択を必須にする
+- 通信保護: 書誌・表紙検索と端末取り込みを20秒でタイムアウトし、登録画面が待ち続けない
+- package / version: `com.uta33.bookreader` / `1.7.1` (`versionCode 14`)
+- 破棄した中間版: EAS `38918907-ca68-4cfa-9992-7a9e0a68542f`（1.7.0 / 13）は最終点検前のため実機テストに使わない
+- EAS build: 最終ビルド後に記録
+- build page: 最終ビルド後に記録
+- APK SHA-256: 最終ビルド後に記録
+- ローカル成果物: `.expo/READING-NOTE-1.7.1-cover-preview.apk`（git管理外）
+- 署名: 最終ビルド後に既存証明書との一致を記録
+- 検証: `npm test`、Expo Doctor 20/20、Android Hermes export、openBD/Open Library実APIでISBN候補3件
+- APK展開検査: 最終ビルド後に記録
+- 実機未確認: 1.6.0からの上書き、JAN登録時の自動保存、既存本の候補選択、オフライン再表示、別端末同期後の再取得
+
 ## 自動preflight（2026-07-28）
 
 - [x] ルート／PWA／Workerの型検査とユニットテスト
@@ -231,6 +252,9 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 ## 実機シナリオ
 
 - [ ] 紙／JAN本5冊
+- [ ] JAN登録時に表紙が自動表示され、再起動後もオフライン表示
+- [ ] 既存の紙の本で「表紙を検索」し、候補を選択して本棚とノートへ反映
+- [ ] 別端末へ同期後、公開URLから表紙が再取得される
 - [ ] content本2冊
 - [ ] 合計10冊
 - [ ] ドッグイヤー20件／3冊

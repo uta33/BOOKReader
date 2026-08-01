@@ -15,8 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS } from '../../constants/colors';
 import { PURPOSES, type PurposeId } from '../../constants/purposes';
+import { BookCoverSearch } from '../../components/library/BookCoverSearch';
 import { createPaperBook } from '../../services/bookFactory';
-import { lookupIsbn, lookupOpenLibraryCover } from '../../services/bookLookup';
+import { lookupIsbn, searchBookCovers } from '../../services/bookLookup';
+import { persistBookCoverFromUrl } from '../../services/bookCoverImage';
 import { normalizeIsbn } from '../../services/isbn';
 import { useLibraryStore } from '../../store/libraryStore';
 
@@ -41,6 +43,7 @@ export default function NewBookScreen() {
   const [pubdate, setPubdate] = useState<string | undefined>();
 
   const [looking, setLooking] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [lookupNote, setLookupNote] = useState<string | null>(null);
 
   // すでに本棚にある本を二重に登録させない。
@@ -53,15 +56,30 @@ export default function NewBookScreen() {
     if (!scannedIsbn || duplicate) return;
     const controller = new AbortController();
     let alive = true;
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 20_000);
 
     setLooking(true);
     setLookupNote(null);
     void (async () => {
       const hit = await lookupIsbn(scannedIsbn, controller.signal);
-      const resolvedCover = hit?.coverUrl ?? await lookupOpenLibraryCover(
-        scannedIsbn,
-        controller.signal,
-      );
+      const covers = await searchBookCovers({
+        isbn: scannedIsbn,
+        title: hit?.title,
+        author: hit?.author,
+        knownOpenBdCoverUrl: hit?.coverUrl ?? null,
+      }, controller.signal);
+      // 自動採用はISBN一致だけ。書名検索の候補は下の選択UIで本人に選んでもらう。
+      const resolvedCover = covers.find((candidate) => candidate.exactIsbn)?.url;
+      if (controller.signal.aborted) {
+        if (alive && timedOut) {
+          setLookupNote('書誌・表紙検索がタイムアウトしました。下の「表紙を検索」から再試行できます。');
+        }
+        return;
+      }
       if (!alive) return;
       setCoverUrl(resolvedCover);
 
@@ -88,11 +106,13 @@ export default function NewBookScreen() {
         setLookupNote('書誌情報を取得できませんでした。手で入力してください。');
       })
       .finally(() => {
+        clearTimeout(timeout);
         if (alive) setLooking(false);
       });
 
     return () => {
       alive = false;
+      clearTimeout(timeout);
       controller.abort();
     };
   }, [scannedIsbn, duplicate]);
@@ -102,10 +122,11 @@ export default function NewBookScreen() {
 
   const canSave = title.trim().length > 0;
 
-  const onSave = () => {
-    if (!canSave) return;
+  const onSave = async () => {
+    if (!canSave || saving) return;
+    setSaving(true);
     const parsedPages = Number.parseInt(pages, 10);
-    const book = createPaperBook({
+    let book = createPaperBook({
       title: title.trim(),
       author: author.trim() || undefined,
       publisher: publisher.trim() || undefined,
@@ -116,6 +137,14 @@ export default function NewBookScreen() {
       pubdate,
       purposes,
     });
+    if (coverUrl) {
+      try {
+        const coverLocalUri = await persistBookCoverFromUrl(coverUrl, book.id);
+        book = { ...book, coverLocalUri };
+      } catch {
+        // 公開URLは保持するので、端末保存だけ失敗しても登録自体は止めない。
+      }
+    }
     addBook(book);
     router.replace({ pathname: '/note/[id]', params: { id: book.id } });
   };
@@ -244,6 +273,16 @@ export default function NewBookScreen() {
             />
           </Field>
 
+          <Field label="表紙画像">
+            <BookCoverSearch
+              isbn={scannedIsbn ?? undefined}
+              title={title}
+              author={author}
+              currentUrl={coverUrl}
+              onSelect={(candidate) => setCoverUrl(candidate.url)}
+            />
+          </Field>
+
           <Field label="この本を読む目的">
             <View style={styles.chips}>
               {PURPOSES.map((p) => {
@@ -266,11 +305,11 @@ export default function NewBookScreen() {
 
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.primaryBtn, !canSave && styles.btnDisabled]}
-            onPress={onSave}
-            disabled={!canSave}
+            style={[styles.primaryBtn, (!canSave || saving) && styles.btnDisabled]}
+            onPress={() => void onSave()}
+            disabled={!canSave || saving}
           >
-            <Text style={styles.primaryBtnText}>本棚に登録する</Text>
+            <Text style={styles.primaryBtnText}>{saving ? '表紙を取り込み中…' : '本棚に登録する'}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

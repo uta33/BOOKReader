@@ -191,15 +191,23 @@ export function replaceWithServerSnapshot(
         .map((dogEar) => [dogEar.id, dogEar] as const),
     ),
   );
+  const localCovers = new Map(localBooks.map((book) => [book.id, book] as const));
   const usedLocalIds = new Set<string>();
   return serverBooks.map((serverBook) => {
     const local = findLocalContent(serverBook, localContent, usedLocalIds);
+    const localCover = localCovers.get(serverBook.id)
+      ?? (serverBook.isbn
+        ? localBooks.find((book) => book.kind === 'paper' && book.isbn === serverBook.isbn)
+        : undefined);
     if (local) usedLocalIds.add(local.id);
     return {
       ...serverBook,
       uri: local?.uri ?? serverBook.uri,
       sentences: local?.sentences ?? serverBook.sentences,
       cachedSentenceIds: local?.cachedSentenceIds ?? serverBook.cachedSentenceIds,
+      coverLocalUri: localCover && localCover.coverUrl === serverBook.coverUrl
+        ? localCover.coverLocalUri
+        : undefined,
       dogEars: serverBook.dogEars.map((dogEar) => {
         const localDogEar = localPhotos.get(dogEar.id);
         const matches = localDogEar?.photoAttachmentId === dogEar.photoAttachmentId;
@@ -235,12 +243,14 @@ function applyBook(
     local.lastSentenceIdx,
     numberField(remote.data.lastSentenceIdx, 0),
   );
+  const canonical = remoteBook(remote);
   const merged = remoteWins
     ? {
-        ...remoteBook(remote),
+        ...canonical,
         uri: local.uri,
         sentences: local.sentences,
         cachedSentenceIds: local.cachedSentenceIds,
+        coverLocalUri: canonical.coverUrl === local.coverUrl ? local.coverLocalUri : undefined,
         dogEars: local.dogEars,
         links: local.links,
         lastSentenceIdx,

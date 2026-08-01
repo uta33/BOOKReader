@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS } from '../../constants/colors';
 import { purposeLabel } from '../../constants/purposes';
 import { Book } from '../../types/book';
-import { openLibraryCoverUrl } from '../../services/bookLookup';
+import { BookCover } from './BookCover';
 
 interface Props {
   book: Book;
@@ -11,6 +11,7 @@ interface Props {
   onPress: () => void;
   onLongPress?: () => void;
   onCoverResolved?: (url: string) => void;
+  onLocalCoverMissing?: () => void;
 }
 
 export function BookCard({
@@ -19,6 +20,7 @@ export function BookCard({
   onPress,
   onLongPress,
   onCoverResolved,
+  onLocalCoverMissing,
 }: Props) {
   const isPaper = book.kind === 'paper';
 
@@ -29,7 +31,13 @@ export function BookCard({
       style={[styles.card, isLastOpened && styles.cardActive]}
       activeOpacity={0.75}
     >
-      <Cover book={book} onCoverResolved={onCoverResolved} />
+      <View style={styles.coverWrap}>
+        <BookCover
+          book={book}
+          onRemoteLoaded={onCoverResolved}
+          onLocalMissing={onLocalCoverMissing}
+        />
+      </View>
 
       <View style={styles.info}>
         <Text style={styles.title} numberOfLines={2}>{book.title}</Text>
@@ -38,54 +46,6 @@ export function BookCard({
 
       {isLastOpened && <View style={styles.activeDot} />}
     </TouchableOpacity>
-  );
-}
-
-function Cover({
-  book,
-  onCoverResolved,
-}: {
-  book: Book;
-  onCoverResolved?: (url: string) => void;
-}) {
-  const candidates = Array.from(new Set([
-    book.coverUrl,
-    book.isbn ? openLibraryCoverUrl(book.isbn) : undefined,
-  ].filter((url): url is string => Boolean(url))));
-  const candidateKey = candidates.join('|');
-  const [candidateIndex, setCandidateIndex] = useState(0);
-
-  useEffect(() => {
-    setCandidateIndex(0);
-  }, [candidateKey]);
-
-  const candidate = candidates[candidateIndex];
-  if (candidate) {
-    return (
-      <Image
-        source={{ uri: candidate }}
-        style={styles.coverImage}
-        resizeMode="cover"
-        onLoad={() => {
-          if (book.coverUrl !== candidate) onCoverResolved?.(candidate);
-        }}
-        onError={() => setCandidateIndex((index) => index + 1)}
-        accessibilityLabel={`${book.title}の表紙`}
-      />
-    );
-  }
-  if (book.kind === 'paper') {
-    // 書影が引けない本も多いので、背表紙として組む。
-    return (
-      <View style={[styles.cover, styles.coverPaper]}>
-        <Text style={styles.coverSpine} numberOfLines={4}>{book.title}</Text>
-      </View>
-    );
-  }
-  return (
-    <View style={styles.cover}>
-      <Text style={styles.coverInitial}>{book.title.charAt(0).toUpperCase()}</Text>
-    </View>
   );
 }
 
@@ -168,39 +128,7 @@ const styles = StyleSheet.create({
   cardActive: {
     borderColor: COLORS.accent,
   },
-  cover: {
-    width: 60,
-    height: 80,
-    borderRadius: 8,
-    backgroundColor: COLORS.accentDim,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  coverImage: {
-    width: 60,
-    height: 80,
-    borderRadius: 8,
-    marginRight: 16,
-    backgroundColor: COLORS.cardElevated,
-  },
-  coverPaper: {
-    backgroundColor: COLORS.cardElevated,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: 4,
-  },
-  coverSpine: {
-    color: COLORS.mutedLight,
-    fontSize: 9,
-    lineHeight: 12,
-    textAlign: 'center',
-  },
-  coverInitial: {
-    fontSize: 28,
-    color: COLORS.accent,
-    fontWeight: '700',
-  },
+  coverWrap: { marginRight: 16 },
   info: { flex: 1 },
   title: {
     color: COLORS.text,

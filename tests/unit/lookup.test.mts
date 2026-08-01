@@ -4,7 +4,10 @@ const {
   shapeOpenBd,
   shapeNdl,
   openLibraryCoverUrl,
+  openLibraryCoverIdUrl,
+  openLibrarySearchUrl,
   lookupOpenLibraryCover,
+  shapeOpenLibraryCovers,
 } = await import('../../src/services/bookLookup.js');
 
 let failures = 0;
@@ -131,6 +134,39 @@ const htmlInsteadOfImage = await lookupOpenLibraryCover(
   }),
 );
 ok(htmlInsteadOfImage === undefined, 'Open Library: 画像以外のレスポンスを採用しない');
+
+const coverSearchPayload = {
+  docs: [
+    {
+      key: '/works/OL1W',
+      title: '思考の整理学',
+      author_name: ['外山滋比古'],
+      cover_i: 10868998,
+      isbn: ['9784480020475', '4480020470'],
+    },
+    { key: '/works/no-cover', title: '書影なし' },
+    { key: '/works/broken-cover', title: '不正', cover_i: -1 },
+  ],
+};
+const searchedCovers = shapeOpenLibraryCovers(coverSearchPayload, '978-4-480-02047-5');
+ok(searchedCovers.length === 1, 'Open Library Search: 書影のある候補だけを返す');
+ok(searchedCovers[0].exactIsbn, 'Open Library Search: ハイフン付きISBNも一致判定する');
+ok(searchedCovers[0].author === '外山滋比古', 'Open Library Search: 著者を整形する');
+ok(
+  searchedCovers[0].url === openLibraryCoverIdUrl(10868998),
+  'Open Library Search: cover IDから大きい書影URLを作る',
+);
+ok(
+  openLibrarySearchUrl({ isbn: '978-4-480-02047-5', title: '無視される題名' })
+    ?.includes('q=isbn%3A9784480020475') === true,
+  'Open Library Search: ISBNを最優先の検索語にする',
+);
+ok(
+  openLibrarySearchUrl({ title: '夜と霧', author: 'フランクル' })
+    ?.includes(encodeURIComponent('夜と霧 フランクル')) === true,
+  'Open Library Search: ISBNが無い本は書名と著者で探す',
+);
+ok(shapeOpenLibraryCovers(null).length === 0, 'Open Library Search: 壊れた応答は空候補');
 
 console.log(failures === 0 ? '\n全て通過' : `\n${failures}件 失敗`);
 process.exit(failures === 0 ? 0 : 1);

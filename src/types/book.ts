@@ -81,8 +81,10 @@ export interface Book {
   author?: string;
   publisher?: string;
   pubdate?: string;
-  /** 書影URL。バイト列は保存しない。 */
+  /** 書影の公開URL。クラウド同期ではこちらだけを共有する。 */
   coverUrl?: string;
+  /** 端末へ取り込んだ書影URI。同期ペイロードには含めない。 */
+  coverLocalUri?: string;
 
   /** 出会った書店（目的「書店と出会う」の実績）。 */
   bookstore?: string;

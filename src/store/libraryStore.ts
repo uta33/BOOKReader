@@ -14,6 +14,8 @@ interface LibraryState {
   deviceId: string;
   addBook: (book: Book) => void;
   updateBook: (id: string, partial: Partial<Book>) => void;
+  /** 同期対象のupdatedAtを変えず、端末固有の値だけを保存する。 */
+  setBookLocalFields: (id: string, partial: Pick<Partial<Book>, 'coverLocalUri'>) => void;
   removeBook: (id: string) => void;
   getBook: (id: string) => Book | undefined;
   addDogEar: (bookId: string, dogEar: DogEar) => void;
@@ -112,6 +114,13 @@ export const useLibraryStore = create<LibraryState>((set, get) => {
     },
 
     updateBook: (id, partial) => patchBook(id, (book) => ({ ...book, ...partial })),
+
+    setBookLocalFields: (id, partial) => {
+      const records = get().allBooks.map((book) =>
+        book.id === id ? { ...book, ...partial } : book,
+      );
+      commit(records, false);
+    },
 
     removeBook: (id) => {
       const records = get().allBooks.map((book) =>
