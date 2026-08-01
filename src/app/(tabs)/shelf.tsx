@@ -28,7 +28,7 @@ const FILTERS: { id: KindFilter; label: string }[] = [
 
 export default function ShelfScreen() {
   const router = useRouter();
-  const { books, removeBook } = useLibraryStore();
+  const { books, removeBook, updateBook } = useLibraryStore();
   const { currentBookId } = useReaderStore();
   const { pickAndImport, loading, error } = usePdfExtraction();
   // 進捗画面の「10の目的」から絞り込んで飛んでくる。
@@ -129,6 +129,9 @@ export default function ShelfScreen() {
                 isLastOpened={item.id === currentBookId}
                 onPress={() => openBook(item.id)}
                 onLongPress={() => confirmDelete(item.id, item.title)}
+                onCoverResolved={(coverUrl) => {
+                  if (item.coverUrl !== coverUrl) updateBook(item.id, { coverUrl });
+                }}
               />
             )}
           />

@@ -602,8 +602,8 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
       title: book.title,
       artist: 'READING NOTE',
       artwork: [
-        { src: '/icon-192-v2.png', sizes: '192x192', type: 'image/png' },
-        { src: '/icon-512-v2.png', sizes: '512x512', type: 'image/png' },
+        { src: '/icon-reading-note-192.png', sizes: '192x192', type: 'image/png' },
+        { src: '/icon-reading-note-512.png', sizes: '512x512', type: 'image/png' },
       ],
     });
   }, [book.title]);

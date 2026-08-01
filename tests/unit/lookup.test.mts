@@ -1,6 +1,11 @@
 // 書誌APIのレスポンス整形。開発環境からは openBD も NDL も
 // ネットワークポリシーで叩けないため、保存したサンプル形で固定する。
-const { shapeOpenBd, shapeNdl } = await import('../../src/services/bookLookup.js');
+const {
+  shapeOpenBd,
+  shapeNdl,
+  openLibraryCoverUrl,
+  lookupOpenLibraryCover,
+} = await import('../../src/services/bookLookup.js');
 
 let failures = 0;
 const ok = (cond: boolean, msg: string, extra?: unknown) => {
@@ -87,6 +92,45 @@ ok(shapeNdl('<rss><channel><title>結果なし</title></channel></rss>') === nul
   'NDL: item が無ければ null（channel の title を拾わない）');
 ok(shapeNdl('<item><dc:creator>著者だけ</dc:creator></item>') === null,
   'NDL: title が無ければ null');
+
+// ── Open Library Covers ────────────────────────────
+const expectedCover = 'https://covers.openlibrary.org/b/isbn/9784480020475-M.jpg?default=false';
+ok(
+  openLibraryCoverUrl('9784480020475') === expectedCover,
+  'Open Library: ISBNから書影URLを組み立てる',
+);
+
+let requestedMethod: string | undefined;
+const foundCover = await lookupOpenLibraryCover(
+  '9784480020475',
+  undefined,
+  async (_input, init) => {
+    requestedMethod = init?.method;
+    return new Response(null, {
+      status: 200,
+      headers: { 'Content-Type': 'image/jpeg' },
+    });
+  },
+);
+ok(requestedMethod === 'HEAD', 'Open Library: 画像本体を落とさず存在確認する');
+ok(foundCover === expectedCover, 'Open Library: 画像レスポンスならURLを返す');
+
+const missingCover = await lookupOpenLibraryCover(
+  '9784999999996',
+  undefined,
+  async () => new Response(null, { status: 404 }),
+);
+ok(missingCover === undefined, 'Open Library: 未収録404は表紙なしへ倒す');
+
+const htmlInsteadOfImage = await lookupOpenLibraryCover(
+  '9784999999996',
+  undefined,
+  async () => new Response(null, {
+    status: 200,
+    headers: { 'Content-Type': 'text/html' },
+  }),
+);
+ok(htmlInsteadOfImage === undefined, 'Open Library: 画像以外のレスポンスを採用しない');
 
 console.log(failures === 0 ? '\n全て通過' : `\n${failures}件 失敗`);
 process.exit(failures === 0 ? 0 : 1);

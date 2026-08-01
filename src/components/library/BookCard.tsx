@@ -1,17 +1,25 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS } from '../../constants/colors';
 import { purposeLabel } from '../../constants/purposes';
 import { Book } from '../../types/book';
+import { openLibraryCoverUrl } from '../../services/bookLookup';
 
 interface Props {
   book: Book;
   isLastOpened?: boolean;
   onPress: () => void;
   onLongPress?: () => void;
+  onCoverResolved?: (url: string) => void;
 }
 
-export function BookCard({ book, isLastOpened, onPress, onLongPress }: Props) {
+export function BookCard({
+  book,
+  isLastOpened,
+  onPress,
+  onLongPress,
+  onCoverResolved,
+}: Props) {
   const isPaper = book.kind === 'paper';
 
   return (
@@ -21,7 +29,7 @@ export function BookCard({ book, isLastOpened, onPress, onLongPress }: Props) {
       style={[styles.card, isLastOpened && styles.cardActive]}
       activeOpacity={0.75}
     >
-      <Cover book={book} />
+      <Cover book={book} onCoverResolved={onCoverResolved} />
 
       <View style={styles.info}>
         <Text style={styles.title} numberOfLines={2}>{book.title}</Text>
@@ -33,9 +41,38 @@ export function BookCard({ book, isLastOpened, onPress, onLongPress }: Props) {
   );
 }
 
-function Cover({ book }: { book: Book }) {
-  if (book.coverUrl) {
-    return <Image source={{ uri: book.coverUrl }} style={styles.coverImage} resizeMode="cover" />;
+function Cover({
+  book,
+  onCoverResolved,
+}: {
+  book: Book;
+  onCoverResolved?: (url: string) => void;
+}) {
+  const candidates = Array.from(new Set([
+    book.coverUrl,
+    book.isbn ? openLibraryCoverUrl(book.isbn) : undefined,
+  ].filter((url): url is string => Boolean(url))));
+  const candidateKey = candidates.join('|');
+  const [candidateIndex, setCandidateIndex] = useState(0);
+
+  useEffect(() => {
+    setCandidateIndex(0);
+  }, [candidateKey]);
+
+  const candidate = candidates[candidateIndex];
+  if (candidate) {
+    return (
+      <Image
+        source={{ uri: candidate }}
+        style={styles.coverImage}
+        resizeMode="cover"
+        onLoad={() => {
+          if (book.coverUrl !== candidate) onCoverResolved?.(candidate);
+        }}
+        onError={() => setCandidateIndex((index) => index + 1)}
+        accessibilityLabel={`${book.title}の表紙`}
+      />
+    );
   }
   if (book.kind === 'paper') {
     // 書影が引けない本も多いので、背表紙として組む。

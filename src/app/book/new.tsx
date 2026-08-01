@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -15,7 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS } from '../../constants/colors';
 import { PURPOSES, type PurposeId } from '../../constants/purposes';
 import { createPaperBook } from '../../services/bookFactory';
-import { lookupIsbn } from '../../services/bookLookup';
+import { lookupIsbn, lookupOpenLibraryCover } from '../../services/bookLookup';
 import { normalizeIsbn } from '../../services/isbn';
 import { useLibraryStore } from '../../store/libraryStore';
 
@@ -55,21 +56,36 @@ export default function NewBookScreen() {
 
     setLooking(true);
     setLookupNote(null);
-    lookupIsbn(scannedIsbn, controller.signal)
-      .then((hit) => {
-        if (!alive) return;
-        if (!hit) {
-          setLookupNote('書誌情報が見つかりませんでした。手で入力してください。');
-          return;
-        }
-        setTitle((v) => v || hit.title);
-        setAuthor((v) => v || hit.author || '');
-        setPublisher((v) => v || hit.publisher || '');
-        setCoverUrl(hit.coverUrl);
-        setPubdate(hit.pubdate);
+    void (async () => {
+      const hit = await lookupIsbn(scannedIsbn, controller.signal);
+      const resolvedCover = hit?.coverUrl ?? await lookupOpenLibraryCover(
+        scannedIsbn,
+        controller.signal,
+      );
+      if (!alive) return;
+      setCoverUrl(resolvedCover);
+
+      if (!hit) {
         setLookupNote(
-          hit.source === 'openbd' ? 'openBD から取得しました' : '国立国会図書館サーチから取得しました',
+          resolvedCover
+            ? '表紙画像を取得しました。タイトルなどを入力してください。'
+            : '書誌情報が見つかりませんでした。手で入力してください。',
         );
+        return;
+      }
+
+      setTitle((v) => v || hit.title);
+      setAuthor((v) => v || hit.author || '');
+      setPublisher((v) => v || hit.publisher || '');
+      setPubdate(hit.pubdate);
+      const sourceLabel = hit.source === 'openbd'
+        ? 'openBD から取得しました'
+        : '国立国会図書館サーチから取得しました';
+      setLookupNote(resolvedCover ? `${sourceLabel}（表紙画像あり）` : sourceLabel);
+    })()
+      .catch(() => {
+        if (!alive) return;
+        setLookupNote('書誌情報を取得できませんでした。手で入力してください。');
       })
       .finally(() => {
         if (alive) setLooking(false);
@@ -152,6 +168,22 @@ export default function NewBookScreen() {
               ) : (
                 lookupNote && <Text style={styles.hint}>{lookupNote}</Text>
               )}
+            </View>
+          )}
+
+          {coverUrl && (
+            <View style={styles.coverPreviewCard}>
+              <Image
+                source={{ uri: coverUrl }}
+                style={styles.coverPreview}
+                resizeMode="cover"
+                onError={() => setCoverUrl(undefined)}
+                accessibilityLabel="自動取得した本の表紙"
+              />
+              <View style={styles.coverPreviewText}>
+                <Text style={styles.coverPreviewTitle}>表紙画像を自動取得しました</Text>
+                <Text style={styles.hint}>登録すると本棚とクラウド同期へ保存されます。</Text>
+              </View>
             </View>
           )}
 
@@ -308,6 +340,24 @@ const styles = StyleSheet.create({
   isbnValue: { color: COLORS.text, fontSize: 15, fontWeight: '600' },
   busyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   hint: { color: COLORS.mutedLight, fontSize: 12.5, lineHeight: 19 },
+  coverPreviewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 12,
+    gap: 14,
+  },
+  coverPreview: {
+    width: 72,
+    height: 96,
+    borderRadius: 8,
+    backgroundColor: COLORS.cardElevated,
+  },
+  coverPreviewText: { flex: 1 },
+  coverPreviewTitle: { color: COLORS.text, fontSize: 14, fontWeight: '700' },
 
   field: { gap: 6 },
   fieldLabel: { color: COLORS.muted, fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },

@@ -62,6 +62,22 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - Google OAuth: Worker callback URIと新しいclient secretを設定し、認証開始200、client ID／redirect URI／PKCE／state／nonceを確認
 - Google認可画面: `redirect_uri_mismatch`なしでアカウント選択画面まで到達（試験ではアカウントを選択せず、紐付けは未実施）
 
+### アイコン参照・書影自動補完版 1.1.2
+
+- 実機申告: アイコンが旧デザインへ戻って見える状態と、表紙が入らない本を確認
+- 原因: Android用アイコン資産は現行版だったが、Web版のMedia Sessionだけ旧`icon-*-v2.png`を参照していた
+- 修正: Android／PWA／通知・ロック画面を`icon-reading-note-*`へ統一し、更新キャッシュを避けるためversionCodeを更新
+- 書影: openBDの書影を優先し、未収録時はOpen Library Covers APIをISBNで照会
+- 新規本: ISBN照会画面に書影プレビューを表示し、登録データへ保存
+- 既存本: 本棚に表示されたカードだけ書影を補完し、取得成功時に端末保存とクラウド同期へ反映
+- package / version: `com.uta33.bookreader` / `1.1.2` (`versionCode 6`)
+- 署名: 1.1.1と同じ証明書SHA-256を実APKで確認
+- APK SHA-256: `C784ED977C3343401C6FE125495E143820A974549FDAE07D10D3066774B3D8D9`
+- ローカル成果物: `.expo/READING-NOTE-1.1.2-preview.apk`（git管理外）
+- 検証: `npm test`、Expo Doctor 20/20、ローカルEAS release build、APK v2署名、package/version、配布URL 200
+- APK展開検査: `AIza` 0件、`GOCSPX` 0件、公開Worker URLあり
+- アイコン展開検査: APK内の通常／adaptive foreground／monochrome資産を抽出し、現行デザインを目視確認
+
 ## 自動preflight（2026-07-28）
 
 - [x] ルート／PWA／Workerの型検査とユニットテスト

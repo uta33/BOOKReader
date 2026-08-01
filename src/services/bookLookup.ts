@@ -2,7 +2,8 @@
  * ISBN-13 から書誌情報を引く。
  *
  * openBD（版元ドットコム＋カーリル）を第1候補、国立国会図書館サーチを第2候補にする。
- * どちらも API キー不要の公開APIなので、アプリから直接叩ける
+ * 書誌側に表紙が無い場合は Open Library Covers API で補完する。
+ * いずれも API キー不要の公開APIなので、アプリから直接叩ける
  * ——つまり書誌照会は自前サーバのデプロイに依存しない。
  *
  * ネットワーク呼び出しとレスポンス整形を分けてあるのは、整形部分を
@@ -22,6 +23,7 @@ export interface LookupResult {
 
 const OPENBD_ENDPOINT = 'https://api.openbd.jp/v1/get';
 const NDL_ENDPOINT = 'https://ndlsearch.ndl.go.jp/api/opensearch';
+const OPEN_LIBRARY_COVERS_ENDPOINT = 'https://covers.openlibrary.org/b/isbn';
 
 function clean(v: unknown): string | undefined {
   if (typeof v !== 'string') return undefined;
@@ -110,6 +112,30 @@ async function fetchText(url: string, signal?: AbortSignal): Promise<string | nu
     return await res.text();
   } catch {
     return null;
+  }
+}
+
+/** Open LibraryのISBN書影URL。表示時の自動フォールバックにも使う。 */
+export function openLibraryCoverUrl(isbn13: string): string {
+  return `${OPEN_LIBRARY_COVERS_ENDPOINT}/${encodeURIComponent(isbn13)}-M.jpg?default=false`;
+}
+
+/**
+ * Open Libraryに実画像があるときだけURLを返す。
+ * default=false により未収録時は空画像ではなく404になる。
+ */
+export async function lookupOpenLibraryCover(
+  isbn13: string,
+  signal?: AbortSignal,
+  fetcher: typeof fetch = fetch,
+): Promise<string | undefined> {
+  const url = openLibraryCoverUrl(isbn13);
+  try {
+    const response = await fetcher(url, { method: 'HEAD', signal });
+    const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
+    return response.ok && contentType.startsWith('image/') ? url : undefined;
+  } catch {
+    return undefined;
   }
 }
 
