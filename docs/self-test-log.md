@@ -80,6 +80,24 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - APK展開検査: `AIza` 0件、`GOCSPX` 0件、公開Worker URLあり
 - アイコン展開検査: APK内の通常／adaptive foreground／monochrome資産を抽出し、現行デザインを目視確認
 
+### Android Obsidian連携版 1.2.0
+
+- 設定: 任意のObsidian Vault名を端末設定へ保存し、接続確認でVaultまたはVault管理画面を開く
+- 本ごとの出力: 書誌、表紙リンク、目的、ドッグイヤー、まとめ、ふりかえり、デジタルリンクをMarkdown化
+- 保存先: Vault内の`READING NOTE/<書名>.md`
+- 安全策: 同名ノートを`overwrite=true`で更新する前に、Obsidian側の追記も置き換わることを確認
+- 長文対策: URIが15,000文字を超えるとクリップボード＋`clipboard=true`へ切り替え
+- データ境界: 論理削除済み項目と取り込みPDF本文は出力せず、Vault名はクラウド同期しない
+- package / version: `com.uta33.bookreader` / `1.2.0` (`versionCode 7`)
+- 署名: 1.2.0以前と同じ証明書SHA-256を実APKで確認
+- APK SHA-256: `4E0733233D0C956EBE53C007C97990690A93B13D34D98D5A4398211F4F19D37B`
+- ローカル成果物: `.expo/READING-NOTE-1.2.0-obsidian-preview.apk`（git管理外）
+- EAS build: `43bd022c-95b1-4519-b2d7-ebd7d30535cc`（status `FINISHED`、2026-08-15まで）
+- build page: <https://expo.dev/accounts/utasan0811/projects/bookreader/builds/43bd022c-95b1-4519-b2d7-ebd7d30535cc>
+- 検証: `npm test`、Obsidian純ロジックテスト、Android export、Expo Doctor 20/20、ローカル／クラウドEAS build
+- APK展開検査: `obsidian://`と`READING NOTE`あり、`AIza` 0件、`GOCSPX` 0件、公開Worker URLあり
+- 実機未確認: Obsidian接続、短文作成、同名更新、長文クリップボード経路
+
 ## 自動preflight（2026-07-28）
 
 - [x] ルート／PWA／Workerの型検査とユニットテスト
