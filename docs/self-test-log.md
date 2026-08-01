@@ -132,6 +132,23 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - APK展開検査: 公開Worker URLあり、`AIza`／`GOCSPX`／`sk-ant-` 0件
 - 実機未確認: 目的絞り込みの解除、1.3.0からの上書きインストール
 
+### Android PDF取り込み修正版 1.3.2
+
+- 原因: Android側でバイナリPDFをUTF-8文字列として開いていたため、圧縮ストリームを含む一般的なPDFが読み込み段階で失敗していた
+- 修正: Expo FileSystemのバイト読み込みとserverless PDF.jsへ切り替え、ページ順に圧縮ストリームと文字対応表を解析
+- 安全策: PDFは50MBまで、ページを直列処理し、失敗時にコピー途中のファイルを削除
+- エラー区分: 無効なPDF、パスワード保護、画像のみのスキャンPDF、解析不能を別メッセージで案内
+- package / version: `com.uta33.bookreader` / `1.3.2` (`versionCode 10`)
+- commit: `a0858fb`
+- EAS build: `7213afe1-be7e-4e22-8353-81719c6b76a2`（status `FINISHED`、2026-08-15まで）
+- build page: <https://expo.dev/accounts/utasan0811/projects/bookreader/builds/7213afe1-be7e-4e22-8353-81719c6b76a2>
+- APK SHA-256: `760909269F5EAA76BA514915BE8128702EC93D2982A968DA75386B58A20611E6`
+- ローカル成果物: `.expo/READING-NOTE-1.3.2-pdf-fix-preview.apk`（git管理外、126,715,339 bytes）
+- 署名: APK v2、既存版と同じ証明書SHA-256 `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64efa2b3b`
+- 検証: `npm test`、圧縮バイナリPDFの回帰テスト、Android Hermes export、EAS release build、配布URL HTTP 200
+- APK展開検査: 公開Worker URLあり、`AIza`／`GOCSPX`／`sk-ant-`／旧TTS環境変数名 0件
+- 実機未確認: 1.3.1からの上書きインストール、報告された実PDFの再取り込み、長い日本語PDFの処理時間
+
 ## 自動preflight（2026-07-28）
 
 - [x] ルート／PWA／Workerの型検査とユニットテスト
