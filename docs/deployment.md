@@ -8,8 +8,8 @@
 - R2: `bookreader-attachments`（binding `ATTACHMENTS`）
 - Cron: 毎日 `03:17 UTC`
 - 設定済みSecret: `AUTH_HMAC_SECRET`、`GOOGLE_TTS_API_KEY`、`GOOGLE_OAUTH_CLIENT_SECRET`
-- 検証済み実装commit: `82289340a2b8d8c79e08ddaa80b56a3fb3f52719`
-- 検証済みWorker version: `05d25035-c207-41b5-b78e-2924f0ac97fe`
+- 検証済み実装commit: `a8519b9`
+- 検証済みWorker version: `dbb63d42-2fa2-470b-8d7e-ebfd98836842`
 
 D1/KV/R2の実設定は `worker/wrangler.jsonc` が正本。既存リソースを再作成しない。
 現在のWorker versionは次で確認する。

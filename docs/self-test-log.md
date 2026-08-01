@@ -166,6 +166,31 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - APK展開検査: 公開Worker URL 1件、`AIza`／`GOCSPX`／`sk-ant-`／旧TTS環境変数名 0件
 - 実機未確認: 1.3.2からの上書きインストール、実際の50MB超PDF、実Markdown、端末性能ごとの処理時間
 
+### 検索・復習・画像同期・安全共有版 1.6.0
+
+- 横断検索: 書名、著者、出版社、ISBN、書店、まとめ、ふりかえり、目的、抜き書き、コメント、リンクを複数語で検索
+- 今日のドッグイヤー: 1日最大5件。「もう一度」は翌日、「覚えた」は1/3/7/14/30/60/120日間隔で再提示
+- 接続診断: 同期、AI、TTS、OCR、Google認証、画像バックアップと当日クォータ・概算費用を設定画面で確認
+- 画像同期: 端末URIを同期せず、ランダム画像IDをD1、画像本体を認証付き非公開R2へ保存
+- 画像上限: 12MB/枚、500枚・250MB/アカウント。SVG、音声、動画は対象外
+- アカウント処理: 統合では採用DogEarの画像所有権を移し、クラウド側だけ・アカウント削除ではR2本体も削除
+- Obsidian: 管理マーカー内だけを更新し、マーカー外の追記を保持。旧形式は既存内容を残したまま管理範囲を末尾へ追加
+- Android共有: Sharesheetから単一のテキスト・URL・画像を受け取り、保存先の本を確認してから抜き書き／リンクへ保存
+- package / version: `com.uta33.bookreader` / `1.6.0` (`versionCode 12`)
+- implementation commits: `6fb5e9a`、`a8519b9`、`7c986ff`
+- Worker: `dbb63d42-2fa2-470b-8d7e-ebfd98836842`
+- R2: `bookreader-attachments`、D1 migration `0004_attachments.sql`
+- EAS build: `acd9f539-aa15-4bf4-bec9-ebc4297706ca`（status `FINISHED`、2026-08-15まで）
+- build page: <https://expo.dev/accounts/utasan0811/projects/bookreader/builds/acd9f539-aa15-4bf4-bec9-ebc4297706ca>
+- APK SHA-256: `7585CE8F182EAC01939F928F557242A241C60C4DF2694FABEA513EA0B8F82707`
+- ローカル成果物: `.expo/READING-NOTE-1.6.0-preview.apk`（git管理外、126,782,283 bytes）
+- 署名: APK v2、既存版と同じ証明書SHA-256 `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64efa2b3b`
+- 検証: `npm test`、Expo Doctor 20/20、Android Hermes export、native prebuild、Worker dry-run、ローカル／本番D1+R2 smoke、EAS release build
+- 本番smoke: 画像upload/get/delete、診断、TTS provider、LWW、読書位置MAX、DogEar和集合、クォータ、アプリ内／ウェブ削除を通過
+- 試験後: 本番D1は開始前と同じ3ユーザー、添付0件、Smoke本0件
+- APK展開検査: `SEND text/*`／`image/*`、expo-sharing native module、公開Worker URL 1件、`AIza`／`GOCSPX`／`sk-ant-`／旧TTS環境変数名 0件
+- 実機未確認: 1.4.0からの上書き、Android共有3種、別端末の画像復元、Obsidianの追記保持、500枚・250MB到達時の表示
+
 ## 自動preflight（2026-07-28）
 
 - [x] ルート／PWA／Workerの型検査とユニットテスト
@@ -177,6 +202,7 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - [x] `AIza`、`sk-ant-`、旧TTS環境変数名がAndroid exportに無い
 - [x] ローカルD1 smoke test
 - [x] 公開D1 smoke test
+- [x] 公開R2の画像upload/get/deleteとアカウント削除後のD1メタデータ消去
 - [x] LWW、読書位置MAX、2端末相当のDogEar和集合
 - [x] 要約20件成功、21件目429、`Retry-After`
 - [x] アプリ内削除、旧token 401、匿名コードによるウェブ削除
@@ -209,7 +235,10 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - [ ] 合計10冊
 - [ ] ドッグイヤー20件／3冊
 - [ ] ドッグイヤーへ撮影画像／端末内画像を添付し、再起動後も表示
+- [ ] 別端末で同じ画像が自動復元される
+- [ ] Chrome／ギャラリーの共有からテキスト・URL・画像を既存本へ保存
 - [ ] Vaultフォルダを選び、Markdownと`_attachments`画像を同時保存
+- [ ] Obsidianノートの管理マーカー外へ追記し、再書き出し後も追記が残る
 - [ ] Obsidianで図・グラフがノート内に表示
 - [ ] 2実機の和集合
 - [ ] 読書位置MAX
