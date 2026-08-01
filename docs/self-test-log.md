@@ -74,6 +74,8 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - 署名: 1.1.1と同じ証明書SHA-256を実APKで確認
 - APK SHA-256: `C784ED977C3343401C6FE125495E143820A974549FDAE07D10D3066774B3D8D9`
 - ローカル成果物: `.expo/READING-NOTE-1.1.2-preview.apk`（git管理外）
+- EAS build: `43ac1cc0-7866-4bce-b573-61b72dbd35d1`（status `FINISHED`、2026-08-15まで）
+- build page: <https://expo.dev/accounts/utasan0811/projects/bookreader/builds/43ac1cc0-7866-4bce-b573-61b72dbd35d1>
 - 検証: `npm test`、Expo Doctor 20/20、ローカルEAS release build、APK v2署名、package/version、配布URL 200
 - APK展開検査: `AIza` 0件、`GOCSPX` 0件、公開Worker URLあり
 - アイコン展開検査: APK内の通常／adaptive foreground／monochrome資産を抽出し、現行デザインを目視確認
