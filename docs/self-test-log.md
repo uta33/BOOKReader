@@ -22,6 +22,19 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - 公開Worker実通信: health → 匿名発行 → account取得 → 空sync → account物理削除まで成功
 - APK展開検査: Worker URL 1件、`AIza` 0件、`sk-ant-` 0件、旧TTS環境変数名 0件
 
+### 実機表示修正版 1.0.2
+
+- 実機発見: 選択中のNeural2音声カードで主ラベルが白背景と同色になり、文字が消える
+- 原因: `voiceLabelSelected` が濃色背景用の `COLORS.onAccent` を使用していた
+- 修正: 選択ラベルを `COLORS.accentBright` に変更し、内部名Cの男性Neural2を「男性C」と表示
+- 回帰: 音声ID／表示名の一意性と音声記号一致テストを追加
+- package / version: `com.uta33.bookreader` / `1.0.2` (`versionCode 3`)
+- 署名: 1.0.1と同じ証明書SHA-256を確認
+- APK SHA-256: `73787C18773F2CFA1F0DF6D49F181D57B8C8CCF2A67E91F0A9A3B176ACD66AC6`
+- ローカル成果物: `.expo/BOOKReader-1.0.2-voice-fix.apk`（git管理外）
+- 検証: `npm test`、Expo Doctor 20/20、Android export、ローカルEAS release build
+- 既知制約: TTS試聴はWorkerのGoogle TTS Secret設定まで「音声サーバーが設定されていません」となる
+
 ## 自動preflight（2026-07-28）
 
 - [x] ルート／PWA／Workerの型検査とユニットテスト
@@ -56,7 +69,7 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 
 | 日付 | 累計冊数 | 同期・復元 | AI利用量／費用 | 5xx | 障害・修正 |
 |---|---:|---|---|---:|---|
-| | | | | | |
+| 2026-08-01 | 未記録 | 未実施 | 0／0 USD | 0 | 選択音声ラベル欠落を発見し1.0.2で修正。14日計測は未開始 |
 
 ## 実機シナリオ
 

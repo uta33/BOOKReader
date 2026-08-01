@@ -368,6 +368,9 @@ export default function SettingsScreen() {
               <TouchableOpacity
                 style={styles.voiceInfo}
                 onPress={() => setVoice(voice.name)}
+                accessibilityRole="radio"
+                accessibilityLabel={voice.label}
+                accessibilityState={{ selected: isSelected }}
               >
                 <View style={styles.voiceLeft}>
                   {isSelected && <View style={styles.selectedDot} />}
@@ -702,7 +705,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent,
   },
   voiceLabel: { color: COLORS.mutedLight, fontSize: 15, fontWeight: '500' },
-  voiceLabelSelected: { color: COLORS.onAccent },
+  voiceLabelSelected: { color: COLORS.accentBright },
   voiceQuality: { color: COLORS.muted, fontSize: 12, marginTop: 2 },
   previewBtn: {
     width: 44,

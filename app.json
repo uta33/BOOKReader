@@ -2,7 +2,7 @@
   "expo": {
     "name": "BOOKReader",
     "slug": "bookreader",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "icon": "./web/public/icon-512-v2.png",
     "orientation": "portrait",
     "scheme": "bookreader",
@@ -21,7 +21,7 @@
     },
     "android": {
       "package": "com.uta33.bookreader",
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",

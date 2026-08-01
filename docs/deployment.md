@@ -94,6 +94,17 @@ npx eas-cli build --platform android --profile preview
 `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64efa2b3b`。
 実機で旧版をアンインストールせず上書きし、署名継続とローカルデータ保持を最終確認する。
 
+EASクラウド枠を使わず同じremote keystoreで修正版を作る場合は、Android SDK／NDKを
+用意したLinuxまたはWSLから次を実行する。`--freeze-credentials`を外さない。
+
+```bash
+eas build --platform android --profile preview --local --non-interactive \
+  --freeze-credentials --output .expo/BOOKReader-preview.apk
+```
+
+2026-08-01にこの方法で1.0.2（versionCode 3）を生成し、1.0.1と証明書SHA-256が
+一致することを確認した。
+
 ## 一時D1への復元ドリル
 
 本番D1へ復元SQLを流さない。出力SQLにはハッシュ化済み識別子等が含まれるため、
