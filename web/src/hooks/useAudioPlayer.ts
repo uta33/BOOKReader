@@ -600,7 +600,7 @@ export function useAudioPlayer(book: Book, onReachedEnd?: () => void): PlayerApi
     if (!('mediaSession' in navigator) || !book.title) return;
     navigator.mediaSession.metadata = new MediaMetadata({
       title: book.title,
-      artist: 'BOOKReader',
+      artist: 'READING NOTE',
       artwork: [
         { src: '/icon-192-v2.png', sizes: '192x192', type: 'image/png' },
         { src: '/icon-512-v2.png', sizes: '512x512', type: 'image/png' },

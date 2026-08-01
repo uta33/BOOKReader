@@ -1,7 +1,10 @@
-# BOOKReader — READING NOTE
+# READING NOTE
 
 紙の本とPDF/TXTを同じ本棚で扱い、マガジンノート、ドッグイヤー抜き書き、
 100冊の進捗、AI要約、読み上げをまとめたExpo製Androidアプリです。
+
+表示名は `READING NOTE`。上書き更新と既存データの互換性を守るため、技術IDの
+`bookreader`（Expo slug、URL scheme、Android package、保存キー）は維持します。
 
 ## 構成
 

@@ -99,11 +99,12 @@ EASクラウド枠を使わず同じremote keystoreで修正版を作る場合�
 
 ```bash
 eas build --platform android --profile preview --local --non-interactive \
-  --freeze-credentials --output .expo/BOOKReader-preview.apk
+  --freeze-credentials --output .expo/READING-NOTE-preview.apk
 ```
 
 2026-08-01にこの方法で1.0.2（versionCode 3）を生成し、1.0.1と証明書SHA-256が
-一致することを確認した。
+一致することを確認した。表示名とアイコンを更新した1.1.0（versionCode 4）も同じ鍵で
+生成し、証明書SHA-256の一致を確認した。
 
 ## 一時D1への復元ドリル
 

@@ -14,11 +14,12 @@ Play Consoleへは、このテストに合格するまでアップロードし�
 APK内の秘密値スキャンと公開Workerの匿名認証・同期・削除を確認した。実機で選択音声の
 ラベル欠落が見つかったため、同じkeystoreで `1.0.2`（versionCode 3）をローカルEAS
 ビルドした。外部プロバイダー資格情報は未設定のため、AI機能を含む14日計測はまだ
-開始していない。
+開始していない。表示名とランチャーアイコンを正式な `READING NOTE` へ揃えた
+`1.1.0`（versionCode 4）も同じkeystoreで生成・検証した。
 
 ## Androidへのインストール
 
-1. 最新候補 `.expo/BOOKReader-1.0.2-voice-fix.apk` をUSBまたは同一LANでAndroidへ送る。
+1. 最新候補 `.expo/READING-NOTE-1.1.0-preview.apk` をUSBまたは同一LANでAndroidへ送る。
 2. APKを開き、Androidに求められた場合だけ、そのブラウザ／ファイルアプリの
    「不明なアプリのインストール」を一時的に許可する。
 3. 旧版のローカル記録を残す場合は、旧版をアンインストールせず、そのままAPKを開いて

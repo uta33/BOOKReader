@@ -1,4 +1,4 @@
-# BOOKReader Web
+# READING NOTE Web
 
 AI要約、読み上げ、復習クイズ、OCRを備えたVite製PWAです。ブラウザーや
 VercelにプロバイダーのAPIキーは置かず、すべて認証済みCloudflare Workerを経由します。

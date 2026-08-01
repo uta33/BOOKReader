@@ -62,7 +62,7 @@ throws(
   'future version rejected',
 );
 
-ok(/^bookreader-backup-\d{8}\.json$/.test(backupFilename()), `filename format (${backupFilename()})`);
+ok(/^reading-note-backup-\d{8}\.json$/.test(backupFilename()), `filename format (${backupFilename()})`);
 
 console.log(failures === 0 ? '\nALL BACKUP UNIT CHECKS PASSED ✅' : `\n${failures} FAILED ❌`);
 process.exit(failures === 0 ? 0 : 1);

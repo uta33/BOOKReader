@@ -48,15 +48,15 @@ export async function deleteWithTicket(env: Env, ticket: unknown): Promise<void>
 export function deletionPage(message?: string): Response {
   const notice = message
     ? `<p role="status">${escapeHtml(message)}</p>`
-    : '<p>BOOKReaderアプリのアカウント画面で発行した削除用コードを入力してください。</p>';
+    : '<p>READING NOTEアプリのアカウント画面で発行した削除用コードを入力してください。</p>';
   return new Response(
     `<!doctype html>
 <html lang="ja">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>BOOKReader アカウント削除</title>
+<title>READING NOTE アカウント削除</title>
 <body style="max-width:42rem;margin:2rem auto;padding:1rem;font-family:system-ui;line-height:1.7">
-<h1>BOOKReader アカウント削除</h1>
+<h1>READING NOTE アカウント削除</h1>
 ${notice}
 <p><a href="/account/delete/google/start">Googleで本人確認して削除する</a></p>
 <hr>
@@ -89,10 +89,10 @@ export function privacyPage(contactEmail?: string): Response {
 <html lang="ja">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>BOOKReader プライバシーポリシー</title>
+<title>READING NOTE プライバシーポリシー</title>
 <body style="max-width:48rem;margin:2rem auto;padding:1rem;font-family:system-ui;line-height:1.75">
-<h1>BOOKReader プライバシーポリシー</h1>
-<p>最終更新日: 2026年7月28日</p>
+<h1>READING NOTE プライバシーポリシー</h1>
+<p>最終更新日: 2026年8月1日</p>
 <h2>取り扱うデータ</h2>
 <p>匿名ユーザーID、Google連携時のGoogle固有IDとメールアドレス、本の書誌・読書ノート・抜き書き・リンク・評価・読了情報、API利用件数、同期revision、匿名発行制御用の不可逆化したIPハッシュを取り扱います。</p>
 <p>端末へ取り込んだPDF/TXT本文、端末内ファイルURI、音声・画像キャッシュはクラウド同期しません。</p>
@@ -112,7 +112,7 @@ export function privacyPage(contactEmail?: string): Response {
 
 export function publicHome(): Response {
   return htmlResponse(
-    `<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>BOOKReader</title><body style="max-width:42rem;margin:2rem auto;padding:1rem;font-family:system-ui;line-height:1.7"><h1>BOOKReader</h1><p>READING NOTEの認証・同期APIです。</p><ul><li><a href="/privacy">プライバシーポリシー</a></li><li><a href="/account/delete">アカウント削除</a></li></ul></body></html>`,
+    `<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>READING NOTE</title><body style="max-width:42rem;margin:2rem auto;padding:1rem;font-family:system-ui;line-height:1.7"><h1>READING NOTE</h1><p>認証・同期APIです。</p><ul><li><a href="/privacy">プライバシーポリシー</a></li><li><a href="/account/delete">アカウント削除</a></li></ul></body></html>`,
   );
 }
 

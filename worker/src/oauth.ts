@@ -147,7 +147,7 @@ export async function handleGoogleCallback(env: Env, requestUrl: URL): Promise<R
         )
         .run();
     }
-    return callbackPage('Google連携を確認しました。BOOKReaderへ戻ってください。', 200);
+    return callbackPage('Google連携を確認しました。READING NOTEへ戻ってください。', 200);
   } catch (error) {
     const message = error instanceof ApiError ? error.message : 'Google連携に失敗しました。';
     return callbackPage(message, error instanceof ApiError ? error.status : 500);
@@ -404,7 +404,7 @@ function callbackPage(message: string, status: number): Response {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
   return new Response(
-    `<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>BOOKReader</title><body style="font-family:system-ui;padding:32px;line-height:1.7"><h1>BOOKReader</h1><p>${safe}</p><p>このページを閉じても認証情報がURLへ残ることはありません。</p></body></html>`,
+    `<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>READING NOTE</title><body style="font-family:system-ui;padding:32px;line-height:1.7"><h1>READING NOTE</h1><p>${safe}</p><p>このページを閉じても認証情報がURLへ残ることはありません。</p></body></html>`,
     {
       status,
       headers: {
@@ -440,7 +440,7 @@ async function handleWebDeletionCallback(
   )
     .bind(claims.sub)
     .first<{ user_id: string; email: string | null }>();
-  if (!identity) throw new ApiError(404, 'BOOKReader account was not found');
+  if (!identity) throw new ApiError(404, 'READING NOTE account was not found');
   const confirmation = randomToken();
   const now = Date.now();
   await env.DB.prepare(
@@ -461,7 +461,7 @@ async function handleWebDeletionCallback(
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
   return new Response(
-    `<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>BOOKReader 削除確認</title><body style="max-width:42rem;margin:2rem auto;padding:1rem;font-family:system-ui;line-height:1.7"><h1>削除確認</h1><p>${safeEmail} のBOOKReaderアカウントと${Number(count?.count ?? 0)}冊を削除します。</p><form method="post" action="/account/delete/google/confirm"><input type="hidden" name="confirmation" value="${confirmation}"><button type="submit" style="padding:.8rem 1rem">完全に削除する</button></form><p>この操作は元に戻せません。</p></body></html>`,
+    `<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>READING NOTE 削除確認</title><body style="max-width:42rem;margin:2rem auto;padding:1rem;font-family:system-ui;line-height:1.7"><h1>削除確認</h1><p>${safeEmail} のREADING NOTEアカウントと${Number(count?.count ?? 0)}冊を削除します。</p><form method="post" action="/account/delete/google/confirm"><input type="hidden" name="confirmation" value="${confirmation}"><button type="submit" style="padding:.8rem 1rem">完全に削除する</button></form><p>この操作は元に戻せません。</p></body></html>`,
     {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',

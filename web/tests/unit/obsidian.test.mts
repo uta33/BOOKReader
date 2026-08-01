@@ -33,7 +33,7 @@ const book: Book = {
 
 const note = buildObsidianNote(book);
 ok(note.name === 'エッセンシャル思考 最少の時間で成果を最大にする', `note name sanitized (got: ${note.name})`);
-ok(note.content.startsWith('---\nsource: BOOKReader\ncreated: 2'), 'frontmatter present');
+ok(note.content.startsWith('---\nsource: READING NOTE\ncreated: 2'), 'frontmatter present');
 ok(note.content.includes('## ふりかえり（自分の言葉）\n\n大事なのは選ぶこと。'), 'recap section');
 ok(note.content.includes('**Q1. 何が大事？**\n\nA. 選ぶことです。'), 'quiz section');
 ok(note.content.includes('## 第1章 選択する\n\n一文目です。二文目です。'), 'summary heading + merged paragraph');
@@ -41,7 +41,7 @@ ok(note.content.includes('## まとめ\n\n三文目です。'), '。-stripped he
 
 // URI mode with vault name
 const exp = buildObsidianExport(book, 'MyVault');
-ok(exp.uri.startsWith('obsidian://new?file=BOOKReader%2F'), 'file goes into BOOKReader folder');
+ok(exp.uri.startsWith('obsidian://new?file=READING%20NOTE%2F'), 'file goes into READING NOTE folder');
 ok(exp.uri.includes('&vault=MyVault'), 'vault param included when set');
 ok(!exp.viaClipboard && exp.uri.includes('&content='), 'short note travels in the URI');
 const decoded = decodeURIComponent(exp.uri.split('&content=')[1]);
@@ -68,7 +68,7 @@ ok(exp3.content.includes('これは長い本文の299番目'), 'full content sti
 
 // pathological title
 ok(sanitizeNoteName('a/b\\c:d*e?"f<g>h|i#j[k]^') === 'a b c d e f g h i j k', 'invalid filename chars stripped');
-ok(sanitizeNoteName('   ') === 'BOOKReaderノート', 'blank title falls back');
+ok(sanitizeNoteName('   ') === 'READING NOTE ノート', 'blank title falls back');
 
 console.log(failures === 0 ? '\nALL OBSIDIAN UNIT CHECKS PASSED ✅' : `\n${failures} FAILED ❌`);
 process.exit(failures === 0 ? 0 : 1);

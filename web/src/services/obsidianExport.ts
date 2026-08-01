@@ -5,7 +5,7 @@ import type { Book } from '../types/book';
  * the button opens the Obsidian app and creates the note in the vault.
  * Notes land in this folder (created automatically by Obsidian).
  */
-const FOLDER = 'BOOKReader';
+const FOLDER = 'READING NOTE';
 
 /**
  * Above this URI length the note content travels via the clipboard instead
@@ -21,7 +21,7 @@ export function sanitizeNoteName(title: string): string {
       .replace(/[\\/:*?"<>|#^[\]]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
-      .slice(0, 80) || 'BOOKReaderノート'
+      .slice(0, 80) || 'READING NOTE ノート'
   );
 }
 
@@ -53,7 +53,7 @@ export function buildObsidianNote(book: Book): { name: string; content: string }
 
   const parts: string[] = [
     '---',
-    'source: BOOKReader',
+    'source: READING NOTE',
     `created: ${ymd}`,
     'tags: [reading, book-summary]',
     '---',

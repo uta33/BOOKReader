@@ -35,6 +35,19 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - 検証: `npm test`、Expo Doctor 20/20、Android export、ローカルEAS release build
 - 既知制約: TTS試聴はWorkerのGoogle TTS Secret設定まで「音声サーバーが設定されていません」となる
 
+### 正式名称・アイコン版 1.1.0
+
+- 表示名: `BOOKReader` から `READING NOTE` へ統一
+- アイコン: 読書ノート、栞、ドッグイヤーを紙・藍・朱で表現した新規アイコン
+- Android: 通常、round、adaptive、Android 13+ monochrome資源をAPK内で確認
+- package / version: `com.uta33.bookreader` / `1.1.0` (`versionCode 4`)
+- 署名: 1.0.1／1.0.2と同じ証明書SHA-256を確認
+- APK SHA-256: `BABC68BB4478736D649AE7B0C37C10C6960E6A0F9D5D8E3E273BBDF3F1A3D3AA`
+- ローカル成果物: `.expo/READING-NOTE-1.1.0-preview.apk`（git管理外）
+- 検証: `npm test`、Expo Doctor 20/20、PWA本番ビルド、Worker dry-run、Android export、ローカルEAS release build
+- APK展開検査: `AIza` 0件、`sk-ant-` 0件、旧TTS環境変数名 0件、公開Worker URLあり
+- 互換性: Expo slug、URL scheme、Android package、保存キー、バックアップenvelopeは変更なし
+
 ## 自動preflight（2026-07-28）
 
 - [x] ルート／PWA／Workerの型検査とユニットテスト

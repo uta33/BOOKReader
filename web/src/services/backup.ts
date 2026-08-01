@@ -65,7 +65,7 @@ export function backupFilename(now = new Date()): string {
   const ymd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(
     now.getDate(),
   ).padStart(2, '0')}`;
-  return `bookreader-backup-${ymd}.json`;
+  return `reading-note-backup-${ymd}.json`;
 }
 
 /**
@@ -81,7 +81,7 @@ export function restoreBackup(json: string): BackupSummary {
     throw new Error('バックアップファイルを読み取れません（JSONが壊れています）。');
   }
   if (parsed?.app !== BACKUP_APP || typeof parsed.stores !== 'object' || !parsed.stores) {
-    throw new Error('BOOKReaderのバックアップファイルではありません。');
+    throw new Error('READING NOTEのバックアップファイルではありません。');
   }
   if (parsed.version > BACKUP_VERSION) {
     throw new Error('このバックアップは新しいバージョンのアプリで作成されています。');

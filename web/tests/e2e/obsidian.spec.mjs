@@ -45,7 +45,7 @@ try {
   await page.getByRole('menuitem', { name: /Obsidianにノート作成/ }).click();
   let uris = await page.evaluate(() => window.__uris);
   check(uris.length === 1, 'obsidian:// launched from reader menu');
-  check(uris[0].startsWith('obsidian://new?file=BOOKReader%2Fobsidian-book'), 'note path = BOOKReader/<title>', uris[0].slice(0, 80));
+  check(uris[0].startsWith('obsidian://new?file=READING%20NOTE%2Fobsidian-book'), 'note path = READING NOTE/<title>', uris[0].slice(0, 80));
   check(!uris[0].includes('vault='), 'no vault param when unset');
   const content = decodeURIComponent(uris[0].split('&content=')[1]);
   check(content.includes('## 要約') && content.includes('## 第1章 学び'), 'note contains summary with headings');

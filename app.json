@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "BOOKReader",
+    "name": "READING NOTE",
     "slug": "bookreader",
-    "version": "1.0.2",
-    "icon": "./web/public/icon-512-v2.png",
+    "version": "1.1.0",
+    "icon": "./web/public/icon-reading-note-1024.png",
     "orientation": "portrait",
     "scheme": "bookreader",
     "userInterfaceStyle": "light",
@@ -21,7 +21,12 @@
     },
     "android": {
       "package": "com.uta33.bookreader",
-      "versionCode": 3,
+      "versionCode": 4,
+      "adaptiveIcon": {
+        "foregroundImage": "./web/public/icon-reading-note-foreground.png",
+        "monochromeImage": "./web/public/icon-reading-note-monochrome.png",
+        "backgroundColor": "#F3F1E8"
+      },
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",

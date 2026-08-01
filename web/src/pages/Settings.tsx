@@ -270,7 +270,7 @@ export function Settings() {
           />
           <p className="hint">
             リーダーの⋯メニュー「Obsidianにノート作成」で、ふりかえり・クイズ・要約が
-            Vaultの「BOOKReader」フォルダにノートとして作成されます（Obsidianアプリが必要）。
+            Vaultの「READING NOTE」フォルダにノートとして作成されます（Obsidianアプリが必要）。
           </p>
         </label>
 

@@ -39,7 +39,7 @@ try {
   const dlPromise = page.waitForEvent('download', { timeout: 10000 });
   await page.getByRole('button', { name: 'データを書き出す（JSON）' }).click();
   const dl = await dlPromise;
-  check(/^bookreader-backup-\d{8}\.json$/.test(dl.suggestedFilename()), `filename (${dl.suggestedFilename()})`);
+  check(/^reading-note-backup-\d{8}\.json$/.test(dl.suggestedFilename()), `filename (${dl.suggestedFilename()})`);
   const file = `${SHOT}/exported-backup.json`;
   await dl.saveAs(file);
   const backup = JSON.parse(readFileSync(file, 'utf8'));

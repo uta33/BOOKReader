@@ -35,7 +35,7 @@ export function Library() {
   return (
     <div className="page">
       <header className="appbar">
-        <h1 className="appbar__title">BOOKReader</h1>
+        <h1 className="appbar__title">READING NOTE</h1>
       </header>
 
       {dueCount > 0 && (

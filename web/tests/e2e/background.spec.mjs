@@ -74,7 +74,7 @@ try {
     state: navigator.mediaSession.playbackState,
   }));
   check(ms.title === 'bg-book', `mediaSession title = book title (${ms.title})`);
-  check(ms.artist === 'BOOKReader', 'mediaSession artist set');
+  check(ms.artist === 'READING NOTE', 'mediaSession artist set');
   check(ms.artwork === 2, 'mediaSession artwork (192/512) set');
   check(ms.state === 'playing', `mediaSession playbackState=playing (${ms.state})`);
 
