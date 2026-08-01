@@ -93,6 +93,8 @@ try {
   if (account.body.auth !== 'anonymous') throw new Error('Expected an anonymous account');
 
   const now = Date.now();
+  const attachmentId = `smoke-attachment-${runId}`;
+  const dogEarId = `smoke-dog-${runId}`;
   const syncPayload = {
     since: 0,
     changes: [
@@ -110,9 +112,16 @@ try {
       },
       {
         entity: 'dogEar',
-        id: `smoke-dog-${runId}`,
+        id: dogEarId,
         bookId: `smoke-book-${runId}`,
-        data: { page: 12, quote: '同期テスト', createdAt: now },
+        data: {
+          page: 12,
+          quote: '同期テスト',
+          createdAt: now,
+          reviewLevel: 2,
+          nextReviewAt: now + 86_400_000,
+          photoAttachmentId: attachmentId,
+        },
         updatedAt: now,
         originDeviceId: `smoke-device-${runId}`,
       },
@@ -126,6 +135,56 @@ try {
   if (sync.body.cursor < 2 || sync.body.changes.length < 2) {
     throw new Error('Sync did not return both pushed records');
   }
+
+  // APIのバイト往復を確認する最小fixture。画像デコード自体はクライアント側の責務。
+  const imageBytes = new Uint8Array([80, 78, 71, 1, 2, 3, 4]);
+  const uploaded = await request(
+    `/v1/attachments/${attachmentId}`,
+    {
+      method: 'PUT',
+      headers: {
+        ...authorization,
+        'Content-Type': 'image/png',
+        'X-Dog-Ear-Id': dogEarId,
+      },
+      body: imageBytes,
+    },
+    201,
+  );
+  if (uploaded.body.sizeBytes !== imageBytes.byteLength) {
+    throw new Error('Attachment upload size was not recorded');
+  }
+  const downloaded = await request(`/v1/attachments/${attachmentId}`, {
+    headers: authorization,
+  });
+  if (
+    downloaded.response.headers.get('content-type') !== 'image/png' ||
+    !Buffer.from(downloaded.body, 'latin1').equals(Buffer.from(imageBytes))
+  ) {
+    throw new Error('Attachment download did not preserve content');
+  }
+  const diagnostics = await request('/v1/diagnostics', { headers: authorization });
+  if (diagnostics.body.services.attachments !== true) {
+    throw new Error('Diagnostics did not report image backup');
+  }
+  await request(`/v1/attachments/${attachmentId}`, {
+    method: 'DELETE',
+    headers: authorization,
+  });
+  await request(`/v1/attachments/${attachmentId}`, { headers: authorization }, 404);
+  await request(
+    `/v1/attachments/${attachmentId}`,
+    {
+      method: 'PUT',
+      headers: {
+        ...authorization,
+        'Content-Type': 'image/png',
+        'X-Dog-Ear-Id': dogEarId,
+      },
+      body: imageBytes,
+    },
+    201,
+  );
 
   const secondDevice = await request('/v1/sync', {
     method: 'POST',
@@ -341,6 +400,8 @@ try {
         syncChanges: fullSnapshot.body.changes.length,
         lwwAndReadingPositionMax: true,
         twoDeviceDogEarUnion: true,
+        attachmentUploadDownloadDelete: true,
+        diagnosticsAttachments: true,
         ttsFallback: tts.body.fallback,
         summaryQuota: '20 accepted, 21st rejected',
         deletionTicket: true,

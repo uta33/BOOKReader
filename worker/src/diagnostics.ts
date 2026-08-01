@@ -42,6 +42,7 @@ export function buildDiagnostics(env: Env, row: QuotaRow, day: string) {
       tts: Boolean(env.GOOGLE_TTS_API_KEY),
       ocr: Boolean(env.GOOGLE_VISION_API_KEY ?? env.GOOGLE_TTS_API_KEY),
       googleAuth: Boolean(env.GOOGLE_OAUTH_CLIENT_ID && env.GOOGLE_OAUTH_CLIENT_SECRET),
+      attachments: Boolean(env.ATTACHMENTS),
     },
     quota: {
       day: row.day ?? day,

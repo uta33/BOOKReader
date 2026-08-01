@@ -1,4 +1,5 @@
 import type { EntityType, Env } from './types';
+import { mergeUserAttachments } from './attachments';
 
 export interface DomainRow {
   id: string;
@@ -89,6 +90,8 @@ export async function mergeAccounts(
         .flatMap((row) => canonicalStatements(env, targetUserId, row, Date.now()));
       if (statements.length) await env.DB.batch(statements);
     }
+
+    await mergeUserAttachments(env, sourceUserId, targetUserId);
 
     await env.DB.batch([
       env.DB.prepare(

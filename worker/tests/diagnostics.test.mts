@@ -8,6 +8,7 @@ const configured = buildDiagnostics(
     GOOGLE_TTS_API_KEY: 'configured',
     GOOGLE_OAUTH_CLIENT_ID: 'configured',
     GOOGLE_OAUTH_CLIENT_SECRET: 'configured',
+    ATTACHMENTS: {} as R2Bucket,
   } as Env,
   {
     day: '2026-08-01',
@@ -24,6 +25,7 @@ assert.equal(configured.services.summary, true);
 assert.equal(configured.services.tts, true);
 assert.equal(configured.services.ocr, true);
 assert.equal(configured.services.googleAuth, true);
+assert.equal(configured.services.attachments, true);
 assert.deepEqual(configured.quota.limits, QUOTA_LIMITS);
 assert.equal(configured.quota.used.ttsChars, 500);
 assert.equal(configured.quota.estimatedUsd, 0.123);
@@ -31,6 +33,7 @@ assert.equal(configured.quota.estimatedUsd, 0.123);
 const missing = buildDiagnostics({} as Env, { summary_count: -1 }, '2026-08-02');
 assert.equal(missing.services.summary, false);
 assert.equal(missing.services.googleAuth, false);
+assert.equal(missing.services.attachments, false);
 assert.equal(missing.quota.used.summary, 0);
 assert.equal(missing.quota.day, '2026-08-02');
 

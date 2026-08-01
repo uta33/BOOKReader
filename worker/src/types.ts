@@ -1,6 +1,7 @@
 export interface Env {
   DB: D1Database;
   JWKS_CACHE: KVNamespace;
+  ATTACHMENTS: R2Bucket;
   ANTHROPIC_API_KEY?: string;
   GOOGLE_TTS_API_KEY?: string;
   GOOGLE_VISION_API_KEY?: string;

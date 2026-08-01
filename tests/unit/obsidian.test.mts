@@ -3,6 +3,9 @@ import {
   buildObsidianNote,
   buildObsidianOpenUri,
   dogEarAttachmentName,
+  mergeObsidianManagedContent,
+  OBSIDIAN_MANAGED_BEGIN,
+  OBSIDIAN_MANAGED_END,
   sanitizeNoteName,
 } from '../../src/services/obsidianExport.js';
 import type { Book } from '../../src/types/book.js';
@@ -73,6 +76,8 @@ ok(
   `ファイル名の禁止文字を除く（${note.name}）`,
 );
 ok(note.content.includes('source: READING NOTE'), 'READING NOTE由来のfrontmatterを入れる');
+ok(note.content.includes(OBSIDIAN_MANAGED_BEGIN), 'アプリ管理範囲の開始マーカーを入れる');
+ok(note.content.includes(OBSIDIAN_MANAGED_END), 'アプリ管理範囲の終了マーカーを入れる');
 ok(note.content.includes('exported: 2026-08-01T04:00:00.000Z'), '書き出し日時を入れる');
 ok(note.content.includes('isbn: "9784480020475"'), 'ISBNをfrontmatterへ入れる');
 ok(note.content.includes('- 評価: ★★★★☆'), '星評価を出力する');
@@ -123,6 +128,20 @@ ok(longExport.viaClipboard, '長いノートはクリップボード方式へ切
 ok(longExport.uri.includes('clipboard=true'), '長文URIにclipboard指定を入れる');
 ok(!longExport.uri.includes('content='), '長文URIへ本文を埋め込まない');
 ok(longExport.content.includes('長い要約です。'), 'クリップボード用本文を保持する');
+
+const userEdited = `${note.content}\n## 自分の追記\n\nここは消さない。\n`;
+const refreshed = buildObsidianNote({ ...book, summary: '更新後のまとめ。' }, now).content;
+const safelyUpdated = mergeObsidianManagedContent(userEdited, refreshed);
+ok(safelyUpdated.mode === 'updated', '管理マーカーがあれば管理範囲だけ更新する');
+ok(safelyUpdated.content.includes('更新後のまとめ。'), '管理範囲へ最新内容を反映する');
+ok(safelyUpdated.content.includes('ここは消さない。'), 'マーカー外のユーザー追記を保持する');
+ok(!safelyUpdated.content.includes('より少なく、しかしより良くを選ぶ本。'), '古い管理内容を残さない');
+
+const legacyEdited = '# 以前のノート\n\nユーザーが追記した文章。';
+const preservedLegacy = mergeObsidianManagedContent(legacyEdited, refreshed);
+ok(preservedLegacy.mode === 'preserved-existing', '旧形式は既存内容を保護して追加する');
+ok(preservedLegacy.content.startsWith(legacyEdited), '旧形式の既存内容を一文字も削除しない');
+ok(preservedLegacy.content.includes('更新後のまとめ。'), '旧形式の末尾へ最新管理範囲を追加する');
 
 const defensiveNote = buildObsidianNote(
   { ...book, rating: 99, createdAt: Number.MAX_VALUE },

@@ -2,6 +2,7 @@ import { randomToken, sha256 } from './crypto';
 import { ApiError } from './errors';
 import { deleteUserStatements, replaceWithAnonymous } from './auth';
 import type { AuthUser, Env } from './types';
+import { deleteUserAttachmentObjects } from './attachments';
 
 export async function signOut(request: Request, env: Env, user: AuthUser) {
   const linked = await env.DB.prepare(
@@ -14,6 +15,7 @@ export async function signOut(request: Request, env: Env, user: AuthUser) {
 }
 
 export async function deleteAccount(env: Env, user: AuthUser) {
+  await deleteUserAttachmentObjects(env, user.id);
   await env.DB.batch(deleteUserStatements(env, user.id));
   return { deleted: true as const };
 }
@@ -42,6 +44,7 @@ export async function deleteWithTicket(env: Env, ticket: unknown): Promise<void>
     .bind(await sha256(ticket), Date.now())
     .first<{ user_id: string }>();
   if (!row) throw new ApiError(400, 'Deletion ticket is invalid or expired');
+  await deleteUserAttachmentObjects(env, row.user_id);
   await env.DB.batch(deleteUserStatements(env, row.user_id));
 }
 
@@ -64,7 +67,7 @@ ${notice}
 <label>削除用コード<br><input name="ticket" required autocomplete="off" style="width:100%;padding:.7rem"></label>
 <p><button type="submit" style="padding:.7rem 1rem">アカウントとクラウドデータを削除</button></p>
 </form>
-<p>削除すると、クラウド上の本、抜き書き、リンク、認証セッションを元に戻せません。端末内データはアプリ内の削除操作で消去してください。</p>
+<p>削除すると、クラウド上の本、抜き書き、画像、リンク、認証セッションを元に戻せません。端末内データはアプリ内の削除操作で消去してください。</p>
 <p><a href="/privacy">プライバシーポリシー</a></p>
 </body></html>`,
     {
@@ -94,12 +97,12 @@ export function privacyPage(contactEmail?: string): Response {
 <h1>READING NOTE プライバシーポリシー</h1>
 <p>最終更新日: 2026年8月1日</p>
 <h2>取り扱うデータ</h2>
-<p>匿名ユーザーID、Google連携時のGoogle固有IDとメールアドレス、本の書誌・読書ノート・抜き書き・リンク・評価・読了情報、API利用件数、同期revision、匿名発行制御用の不可逆化したIPハッシュを取り扱います。</p>
-<p>端末へ取り込んだPDF/TXT本文、端末内ファイルURI、音声・画像キャッシュはクラウド同期しません。</p>
+<p>匿名ユーザーID、Google連携時のGoogle固有IDとメールアドレス、本の書誌・読書ノート・抜き書き・添付画像・リンク・評価・読了情報、API利用件数、同期revision、匿名発行制御用の不可逆化したIPハッシュを取り扱います。</p>
+<p>端末へ取り込んだPDF/TXT/Markdown本文、端末内ファイルURI、音声キャッシュはクラウド同期しません。抜き書きへ利用者が添付した画像だけを、復元のため暗号化通信で非公開保存します。</p>
 <h2>外部サービス</h2>
 <p>AI要約・クイズにはAnthropic、読み上げ・文字認識にはGoogle Cloud、認証にはGoogle OAuth、クラウド保存にはCloudflareを使用し、機能に必要な範囲で入力データを送信します。</p>
 <h2>保持と削除</h2>
-<p>同期の論理削除記録は90日保持します。アカウント削除時は稼働中データベースのアカウント、読書記録、認証セッションを物理削除します。災害復旧履歴のコピーは保持期間終了後に失効します。</p>
+<p>同期の論理削除記録は90日保持します。アカウント削除時は稼働中データベースのアカウント、読書記録、添付画像、認証セッションを物理削除します。災害復旧履歴のコピーは保持期間終了後に失効します。</p>
 <p>ウェブから削除した後、端末に記録が残っている場合は、新しい匿名アカウントへ移すか端末からも削除するかをアプリで確認します。自動では再同期しません。</p>
 <p><a href="/account/delete">アカウントとクラウドデータを削除する</a></p>
 <h2>安全管理</h2>

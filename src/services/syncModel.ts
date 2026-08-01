@@ -70,6 +70,7 @@ export function flattenLibrary(books: Book[], deviceId: string): SyncChange[] {
           reviewLevel: dogEar.reviewLevel,
           lastReviewedAt: dogEar.lastReviewedAt,
           nextReviewAt: dogEar.nextReviewAt,
+          photoAttachmentId: dogEar.photoAttachmentId,
         },
         updatedAt: Math.max(
           dogEar.updatedAt ?? Math.max(1, dogEar.createdAt),
@@ -187,7 +188,7 @@ export function replaceWithServerSnapshot(
     localBooks.flatMap((book) =>
       book.dogEars
         .filter((dogEar) => dogEar.photoUri)
-        .map((dogEar) => [dogEar.id, dogEar.photoUri] as const),
+        .map((dogEar) => [dogEar.id, dogEar] as const),
     ),
   );
   const usedLocalIds = new Set<string>();
@@ -199,10 +200,17 @@ export function replaceWithServerSnapshot(
       uri: local?.uri ?? serverBook.uri,
       sentences: local?.sentences ?? serverBook.sentences,
       cachedSentenceIds: local?.cachedSentenceIds ?? serverBook.cachedSentenceIds,
-      dogEars: serverBook.dogEars.map((dogEar) => ({
-        ...dogEar,
-        photoUri: localPhotos.get(dogEar.id),
-      })),
+      dogEars: serverBook.dogEars.map((dogEar) => {
+        const localDogEar = localPhotos.get(dogEar.id);
+        const matches = localDogEar?.photoAttachmentId === dogEar.photoAttachmentId;
+        return {
+          ...dogEar,
+          photoUri: matches ? localDogEar?.photoUri : undefined,
+          photoAttachmentSyncedAt: matches
+            ? localDogEar?.photoAttachmentSyncedAt
+            : undefined,
+        };
+      }),
     };
   });
 }
@@ -291,11 +299,13 @@ function applyDogEar(
       remote.originDeviceId === localVersion.originDeviceId;
     if (!acknowledged && compareChanges(remote, localVersion) < 0) return book;
     const canonical = remoteDogEar(remote);
+    const samePhoto = canonical.photoAttachmentId === local.photoAttachmentId;
     return {
       ...book,
       dogEars: replaceAt(book.dogEars, index, {
         ...canonical,
-        photoUri: local.photoUri,
+        photoUri: samePhoto ? local.photoUri : undefined,
+        photoAttachmentSyncedAt: samePhoto ? local.photoAttachmentSyncedAt : undefined,
       }),
     };
   });
@@ -335,6 +345,7 @@ function remoteDogEar(remote: SyncChange): DogEar {
     reviewLevel: optionalNumber(remote.data.reviewLevel),
     lastReviewedAt: optionalNumber(remote.data.lastReviewedAt),
     nextReviewAt: optionalNumber(remote.data.nextReviewAt),
+    photoAttachmentId: optionalString(remote.data.photoAttachmentId),
     updatedAt: remote.updatedAt,
     deletedAt: remote.deletedAt,
     originDeviceId: remote.originDeviceId,

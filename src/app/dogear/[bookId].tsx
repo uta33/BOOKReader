@@ -24,6 +24,7 @@ import {
   type PendingDogEarImage,
 } from '../../services/dogEarImage';
 import { useLibraryStore } from '../../store/libraryStore';
+import { deleteAttachment } from '../../services/attachmentClient';
 
 function selectedImage(result: ImagePicker.ImagePickerResult): PendingDogEarImage | null {
   if (result.canceled || !result.assets[0]) return null;
@@ -96,6 +97,10 @@ export default function DogEarScreen() {
         quote: quote.trim(),
         comment: comment.trim() || undefined,
         photoUri: savedPhotoUri,
+        photoAttachmentId:
+          savedPhotoUri === existing?.photoUri ? existing?.photoAttachmentId : undefined,
+        photoAttachmentSyncedAt:
+          savedPhotoUri === existing?.photoUri ? existing?.photoAttachmentSyncedAt : undefined,
       };
 
       if (existing) {
@@ -110,6 +115,9 @@ export default function DogEarScreen() {
 
       if (existing?.photoUri && existing.photoUri !== savedPhotoUri) {
         removeManagedDogEarImage(existing.photoUri);
+      }
+      if (existing?.photoAttachmentId && existing.photoUri !== savedPhotoUri) {
+        void deleteAttachment(existing.photoAttachmentId).catch(() => undefined);
       }
       router.back();
     } catch (error) {
@@ -166,6 +174,7 @@ export default function DogEarScreen() {
         onPress: () => {
           removeDogEar(book.id, existing.id);
           removeManagedDogEarImage(existing.photoUri);
+          void deleteAttachment(existing.photoAttachmentId).catch(() => undefined);
           router.back();
         },
       },

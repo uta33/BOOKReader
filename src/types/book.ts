@@ -26,6 +26,10 @@ export interface DogEar {
   originDeviceId?: string;
   /** 図・グラフ・写真の端末内URI。同期ペイロードには含めない。 */
   photoUri?: string;
+  /** R2上の非公開画像ID。端末間同期の対象。 */
+  photoAttachmentId?: string;
+  /** この端末で画像の送受信が完了した時刻。同期ペイロードには含めない。 */
+  photoAttachmentSyncedAt?: number;
   /** 復習で「覚えた」を選んだ段階。未復習は0相当。 */
   reviewLevel?: number;
   /** 最後に復習した時刻。 */

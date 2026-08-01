@@ -35,6 +35,8 @@ import {
 } from '../../services/obsidianDirectory';
 import { useLibraryStore } from '../../store/libraryStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { deleteAttachment } from '../../services/attachmentClient';
+import { removeManagedDogEarImage } from '../../services/dogEarImage';
 
 export default function NoteScreen() {
   const router = useRouter();
@@ -110,7 +112,16 @@ export default function NoteScreen() {
   const confirmDeleteDogEar = (dogEarId: string) =>
     Alert.alert('この抜き書きを削除', undefined, [
       { text: 'キャンセル', style: 'cancel' },
-      { text: '削除', style: 'destructive', onPress: () => removeDogEar(book.id, dogEarId) },
+      {
+        text: '削除',
+        style: 'destructive',
+        onPress: () => {
+          const dogEar = book.dogEars.find((item) => item.id === dogEarId);
+          removeDogEar(book.id, dogEarId);
+          removeManagedDogEarImage(dogEar?.photoUri);
+          void deleteAttachment(dogEar?.photoAttachmentId).catch(() => undefined);
+        },
+      },
     ]);
 
   const confirmDeleteLink = (linkId: string) =>
@@ -142,7 +153,7 @@ export default function NoteScreen() {
       let directoryName = obsidianDirectoryName;
       const hasImages = snapshot.dogEars.some((dogEar) => Boolean(dogEar.photoUri));
 
-      if (hasImages && Platform.OS === 'android' && !directoryUri) {
+      if (Platform.OS === 'android' && !directoryUri) {
         const selection = await pickObsidianVaultDirectory();
         directoryUri = selection.uri;
         directoryName = selection.name;
@@ -158,7 +169,7 @@ export default function NoteScreen() {
         } catch {
           Alert.alert(
             '書き出しは完了しました',
-            `Markdownと画像${result.imageCount}件をVaultへ保存しましたが、Obsidianを開けませんでした。`,
+            `Markdownと画像${result.imageCount}件をVaultへ安全に保存しましたが、Obsidianを開けませんでした。`,
           );
         }
         return;
@@ -180,19 +191,16 @@ export default function NoteScreen() {
 
   const confirmObsidianExport = () => {
     const hasImages = book.dogEars.some((dogEar) => Boolean(dogEar.photoUri));
-    const directoryMessage = hasImages
-      ? obsidianDirectoryUri
-        ? `画像は「READING NOTE/_attachments」へコピーします（${obsidianDirectoryName || '選択済みVault'}）。`
-        : '画像を含めるため、次にObsidian Vaultのルートフォルダを選びます。初回だけ必要です。'
-      : '';
+    const directoryMessage = obsidianDirectoryUri
+      ? `アプリ管理範囲だけを更新します（${obsidianDirectoryName || '選択済みVault'}）。${hasImages ? '画像は「READING NOTE/_attachments」へコピーします。' : ''}`
+      : '安全に更新するため、次にObsidian Vaultのルートフォルダを選びます。初回だけ必要です。';
     Alert.alert(
       'Obsidianへ書き出す',
-      `Vaultの「READING NOTE」フォルダへ保存します。${directoryMessage}\n\n同名ノートがある場合は内容を置き換えます。Obsidian側で追記した内容も置き換わるため確認してください。`,
+      `Vaultの「READING NOTE」フォルダへ保存します。${directoryMessage}\n\n管理マーカー外に追記した内容は残ります。`,
       [
         { text: 'キャンセル', style: 'cancel' },
         {
           text: '書き出す',
-          style: 'destructive',
           onPress: () => void exportToObsidian(),
         },
       ],

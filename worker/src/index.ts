@@ -33,6 +33,7 @@ import {
   signOut,
 } from './account';
 import { diagnosticsForUser } from './diagnostics';
+import { deleteAttachment, getAttachment, putAttachment } from './attachments';
 
 type AppEnv = { Bindings: Env; Variables: WorkerVariables };
 const app = new Hono<AppEnv>();
@@ -56,8 +57,8 @@ app.use('*', async (c, next) => {
   if (origin && !allowed) throw new ApiError(403, 'Origin is not allowed');
   if (c.req.method === 'OPTIONS') {
     const headers = new Headers({
-      'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
-      'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+      'Access-Control-Allow-Headers': 'Authorization,Content-Type,X-Dog-Ear-Id',
       'Access-Control-Max-Age': '86400',
       Vary: 'Origin',
     });
@@ -108,6 +109,7 @@ app.use('/v1/account', requireAuth);
 app.use('/v1/account/*', requireAuth);
 app.use('/v1/sync', requireAuth);
 app.use('/v1/diagnostics', requireAuth);
+app.use('/v1/attachments/*', requireAuth);
 app.use('/api/*', requireAuth);
 
 app.get('/v1/account', async (c) => {
@@ -144,6 +146,16 @@ app.get('/v1/account', async (c) => {
 
 app.get('/v1/diagnostics', async (c) =>
   c.json(await diagnosticsForUser(c.env, c.get('user').id)),
+);
+
+app.put('/v1/attachments/:id', async (c) =>
+  c.json(await putAttachment(c.env, c.get('user').id, c.req.param('id'), c.req.raw), 201),
+);
+app.get('/v1/attachments/:id', (c) =>
+  getAttachment(c.env, c.get('user').id, c.req.param('id')),
+);
+app.delete('/v1/attachments/:id', async (c) =>
+  c.json(await deleteAttachment(c.env, c.get('user').id, c.req.param('id'))),
 );
 
 app.post('/v1/sync', async (c) => {

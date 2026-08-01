@@ -10,6 +10,7 @@ Anthropic／Googleへ接続する。
 - PWA：Workerから匿名トークンを取得し、AIリクエストもWorkerへ直接送信
 - Vercel Functions：旧URL互換のためAuthorizationと本文をWorkerへ転送するだけ
 - D1：ユーザー、セッション、同期データ、クォータ、OAuth単回状態
+- R2：抜き書きへ添付した画像の非公開オブジェクト
 - KV：公開情報であるGoogle JWKSのキャッシュだけ
 
 ## API契約
@@ -17,6 +18,8 @@ Anthropic／Googleへ接続する。
 - `POST /v1/auth/anonymous` → `{userId, token}`
 - `GET /v1/account`
 - `POST /v1/sync` → `{cursor, changes, hasMore, fullResync?}`
+- `PUT|GET|DELETE /v1/attachments/:id`（Bearer必須）
+- `GET /v1/diagnostics`
 - `POST /v1/auth/google/start|complete|resolve`
 - `POST /v1/auth/signout`
 - `POST /v1/account/deletion-ticket`
@@ -45,10 +48,23 @@ Book、DogEar、DigitalLinkを別ドメイン行として保存する。クラ�
 - 古いcursor：全スナップショットを返す
 - アカウント切替時：内部の`forceFull`でサーバー正本を強制取得
 
-取り込み本文、端末URI、音声・画像キャッシュは同期しない。別端末でcontent本を
+取り込み本文、端末URI、音声キャッシュは同期しない。別端末でcontent本を
 復元した場合は書誌とREADING NOTE部分だけが戻り、本文は再取り込みする。
 アカウント統合時だけ、同じID・ISBN・書名と作成日時で対応づけられた端末本文を
 新しい正規レコードへ引き継ぐ。クラウド側だけを選んだ場合は引き継がない。
+
+抜き書きの画像は例外として、同期行にはランダムな`photoAttachmentId`だけを持ち、
+実データはR2へ分離する。取得・更新・削除はBearer認証と所有者照合を必須にし、
+公開URLや署名なしURLを発行しない。1枚12MB、1アカウント500枚・250MBを上限とする。
+端末URIと端末内の送受信完了時刻は同期しない。アカウント統合では採用された
+DogEarの画像所有権を移し、クラウド側だけの選択とアカウント削除ではR2本体も削除する。
+
+## Android共有
+
+Android Sharesheetから`text/*`と`image/*`の単一共有を受け取る。共有された文章、URL、
+画像は利用者が保存先の本を選び、「選んだ本に保存」を押すまで蔵書へ書き込まない。
+テキストは抜き書き、URLはデジタルリンク、画像は説明付き抜き書きとして保存する。
+音声、動画、複数ファイル、任意ファイル型はIntent filterへ登録しない。
 
 ## Google連携
 
@@ -81,6 +97,7 @@ PKCE、IDトークンの署名・aud・iss・expを検証する。
 - アプリのGoogle OAuth：同一ユーザーの有効フローは最大5件
 - 要約20件/日、クイズ40件/日
 - TTS 100,000文字/日、OCR 200枚/日
+- 添付画像：12MB/枚、500枚・250MB/アカウント
 - 全体上限：2 USD/日、20 USD/月
 
 本文、画像、Bearer、OAuthトークン、プロバイダーキーはログへ出さない。

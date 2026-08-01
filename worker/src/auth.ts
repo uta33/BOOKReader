@@ -2,6 +2,7 @@ import type { Context, Next } from 'hono';
 import { ApiError, isCheckConstraintError } from './errors';
 import { hmacSha256, hourBucket, randomToken, sha256, uuid } from './crypto';
 import type { Env, WorkerVariables } from './types';
+import { deleteUserAttachmentObjects } from './attachments';
 
 type AppContext = Context<{ Bindings: Env; Variables: WorkerVariables }>;
 
@@ -112,6 +113,7 @@ export async function switchToExistingUser(
   const now = Date.now();
   const token = randomToken();
   const tokenHash = await sha256(token);
+  await deleteUserAttachmentObjects(env, sourceUserId);
   await env.DB.batch([
     env.DB.prepare(
       `INSERT INTO sessions (id, user_id, token_hash, created_at, last_used_at)

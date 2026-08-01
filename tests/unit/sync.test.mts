@@ -44,6 +44,7 @@ const flattened = flattenLibrary(
           reviewLevel: 2,
           lastReviewedAt: 100,
           nextReviewAt: 200,
+          photoAttachmentId: 'att-dog-1',
         },
       ],
     }),
@@ -59,6 +60,10 @@ assert.equal(
 );
 assert.equal(flattened.find((change) => change.entity === 'dogEar')!.data.reviewLevel, 2);
 assert.equal(flattened.find((change) => change.entity === 'dogEar')!.data.nextReviewAt, 200);
+assert.equal(
+  flattened.find((change) => change.entity === 'dogEar')!.data.photoAttachmentId,
+  'att-dog-1',
+);
 
 const photoPreserved = applyServerChanges(
   [
@@ -69,6 +74,8 @@ const photoPreserved = applyServerChanges(
           page: 2,
           quote: '端末の引用',
           photoUri: 'file:///private/diagram.png',
+          photoAttachmentId: 'att-photo',
+          photoAttachmentSyncedAt: 123,
           createdAt: 2,
           updatedAt: 3,
           originDeviceId: 'device-a',
@@ -81,7 +88,14 @@ const photoPreserved = applyServerChanges(
       entity: 'dogEar',
       id: 'dog-photo',
       bookId: 'book-1',
-      data: { page: 3, quote: '別端末で更新', createdAt: 2, reviewLevel: 3, nextReviewAt: 500 },
+      data: {
+        page: 3,
+        quote: '別端末で更新',
+        createdAt: 2,
+        reviewLevel: 3,
+        nextReviewAt: 500,
+        photoAttachmentId: 'att-photo',
+      },
       updatedAt: 4,
       originDeviceId: 'device-b',
     },
@@ -91,6 +105,22 @@ assert.equal(photoPreserved.dogEars[0].quote, '別端末で更新');
 assert.equal(photoPreserved.dogEars[0].photoUri, 'file:///private/diagram.png');
 assert.equal(photoPreserved.dogEars[0].reviewLevel, 3);
 assert.equal(photoPreserved.dogEars[0].nextReviewAt, 500);
+assert.equal(photoPreserved.dogEars[0].photoAttachmentSyncedAt, 123);
+
+const replacedPhoto = applyServerChanges(
+  [photoPreserved],
+  [{
+    entity: 'dogEar',
+    id: 'dog-photo',
+    bookId: 'book-1',
+    data: { page: 3, quote: '画像を更新', createdAt: 2, photoAttachmentId: 'att-new' },
+    updatedAt: 5,
+    originDeviceId: 'device-c',
+  }],
+)[0].dogEars[0];
+assert.equal(replacedPhoto.photoAttachmentId, 'att-new');
+assert.equal(replacedPhoto.photoUri, undefined);
+assert.equal(replacedPhoto.photoAttachmentSyncedAt, undefined);
 
 const olderRemote: SyncChange = {
   entity: 'book',

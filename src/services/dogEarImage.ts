@@ -7,7 +7,6 @@ const MIME_EXTENSIONS: Readonly<Record<string, string>> = {
   'image/gif': 'gif',
   'image/jpeg': 'jpg',
   'image/png': 'png',
-  'image/svg+xml': 'svg',
   'image/webp': 'webp',
 };
 const SUPPORTED_EXTENSIONS = new Set(Object.values(MIME_EXTENSIONS));
@@ -22,7 +21,7 @@ function safeId(value: string): string {
   return value.replace(/[^A-Za-z0-9_-]/g, '_').replace(/_+/g, '_').slice(0, 64) || 'dogear';
 }
 
-function imageExtension(image: PendingDogEarImage): string {
+export function imageExtension(image: PendingDogEarImage): string {
   const byMime = image.mimeType ? MIME_EXTENSIONS[image.mimeType.toLowerCase()] : undefined;
   if (byMime) return byMime;
 
@@ -54,6 +53,30 @@ export async function persistDogEarImage(
     `${safeId(dogEarId)}-${Date.now()}.${imageExtension(image)}`,
   );
   await source.copy(target);
+  return target.uri;
+}
+
+export function imageMimeType(image: PendingDogEarImage): string {
+  const normalized = image.mimeType?.split(';', 1)[0].trim().toLowerCase();
+  if (normalized && MIME_EXTENSIONS[normalized]) return normalized;
+  const extension = imageExtension(image);
+  const entry = Object.entries(MIME_EXTENSIONS).find(([, value]) => value === extension);
+  if (!entry) throw new Error('画像形式を判定できません。');
+  return entry[0];
+}
+
+export function persistDownloadedDogEarImage(
+  bytes: Uint8Array,
+  mimeType: string,
+  dogEarId: string,
+): string {
+  const extension = imageExtension({ uri: `download.${mimeType.split('/')[1] ?? ''}`, mimeType });
+  const target = new File(
+    imageDirectory(),
+    `${safeId(dogEarId)}-${Date.now()}.${extension}`,
+  );
+  target.create({ overwrite: true, intermediates: true });
+  target.write(bytes);
   return target.uri;
 }
 

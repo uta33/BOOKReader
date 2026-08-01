@@ -25,7 +25,17 @@ const BOOK_FIELDS = new Set([
   'startedAt',
   'finishedAt',
 ]);
-const DOG_EAR_FIELDS = new Set(['page', 'line', 'quote', 'comment', 'createdAt']);
+const DOG_EAR_FIELDS = new Set([
+  'page',
+  'line',
+  'quote',
+  'comment',
+  'createdAt',
+  'reviewLevel',
+  'lastReviewedAt',
+  'nextReviewAt',
+  'photoAttachmentId',
+]);
 const LINK_FIELDS = new Set(['label', 'url', 'kind', 'createdAt']);
 
 export function compareVersions(

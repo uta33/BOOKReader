@@ -18,6 +18,7 @@ interface LibraryState {
   getBook: (id: string) => Book | undefined;
   addDogEar: (bookId: string, dogEar: DogEar) => void;
   updateDogEar: (bookId: string, dogEarId: string, partial: Partial<DogEar>) => void;
+  setDogEarLocalFields: (bookId: string, dogEarId: string, partial: Partial<DogEar>) => void;
   removeDogEar: (bookId: string, dogEarId: string) => void;
   addLink: (bookId: string, link: DigitalLink) => void;
   removeLink: (bookId: string, linkId: string) => void;
@@ -170,6 +171,20 @@ export const useLibraryStore = create<LibraryState>((set, get) => {
         }),
         false,
       ),
+
+    setDogEarLocalFields: (bookId, dogEarId, partial) => {
+      const records = get().allBooks.map((book) =>
+        book.id === bookId
+          ? {
+              ...book,
+              dogEars: book.dogEars.map((dogEar) =>
+                dogEar.id === dogEarId ? { ...dogEar, ...partial } : dogEar,
+              ),
+            }
+          : book,
+      );
+      commit(records, false);
+    },
 
     removeDogEar: (bookId, dogEarId) =>
       patchBook(

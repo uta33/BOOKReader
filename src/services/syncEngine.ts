@@ -11,6 +11,7 @@ import {
 } from './syncModel';
 import { registerSyncTrigger } from './syncTrigger';
 import { useLibraryStore } from '../store/libraryStore';
+import { syncAttachmentsNow } from './attachmentSync';
 
 const SYNC_KEY = 'bookreader_sync_state';
 const EMPTY: SyncMetadata = { cursor: 0, syncedAt: {} };
@@ -130,6 +131,7 @@ async function runAdoptServerSnapshot(preserveLocalContent: boolean): Promise<vo
       ]),
     ),
   });
+  await syncAttachmentsNow();
 }
 
 async function runSync(): Promise<void> {
@@ -174,7 +176,10 @@ async function runSync(): Promise<void> {
       metadata,
       useLibraryStore.getState().deviceId,
     );
-    if (!result.hasMore && remaining.length === 0) return;
+    if (!result.hasMore && remaining.length === 0) {
+      const attachments = await syncAttachmentsNow();
+      if (!attachments.metadataChanged) return;
+    }
   }
   throw new Error('同期が収束しませんでした。時間を置いて再試行してください。');
 }

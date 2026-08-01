@@ -25,6 +25,12 @@
       "id": "9567dfd837be4e459b462e75354d4e70"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "ATTACHMENTS",
+      "bucket_name": "bookreader-attachments"
+    }
+  ],
   "observability": {
     "enabled": true
   },

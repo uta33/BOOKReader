@@ -3,6 +3,8 @@ import type { Book } from '../types/book';
 import {
   buildObsidianNote,
   dogEarAttachmentName,
+  mergeObsidianManagedContent,
+  type ObsidianManagedUpdate,
   OBSIDIAN_ATTACHMENTS_FOLDER,
   OBSIDIAN_FOLDER,
 } from './obsidianExport';
@@ -15,6 +17,7 @@ export interface ObsidianDirectorySelection {
 export interface ObsidianDirectoryExportResult {
   noteName: string;
   imageCount: number;
+  updateMode: 'created' | ObsidianManagedUpdate;
 }
 
 function isDirectory(entry: File | Directory): entry is Directory {
@@ -100,8 +103,19 @@ export async function exportBookToObsidianDirectory(
   }
 
   const note = buildObsidianNote(book, now, { dogEarImages: imageNames });
-  writeReplacing(noteDirectory, `${note.name}.md`, 'text/markdown', note.content);
-  return { noteName: note.name, imageCount: Object.keys(imageNames).length };
+  const noteFileName = `${note.name}.md`;
+  const existing = noteDirectory.list().find(
+    (entry) => !isDirectory(entry) && entry.name === noteFileName,
+  );
+  let content = note.content;
+  let updateMode: ObsidianDirectoryExportResult['updateMode'] = 'created';
+  if (existing && !isDirectory(existing)) {
+    const merged = mergeObsidianManagedContent(await existing.text(), note.content);
+    content = merged.content;
+    updateMode = merged.mode;
+  }
+  writeReplacing(noteDirectory, noteFileName, 'text/markdown', content);
+  return { noteName: note.name, imageCount: Object.keys(imageNames).length, updateMode };
 }
 
 export function isDirectoryPickerCancellation(error: unknown): boolean {

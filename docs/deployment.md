@@ -5,12 +5,13 @@
 - Worker: `https://bookreader-api.hamasan.workers.dev`
 - D1: `bookreader`（APAC）
 - KV: `JWKS_CACHE`
+- R2: `bookreader-attachments`（binding `ATTACHMENTS`）
 - Cron: 毎日 `03:17 UTC`
 - 設定済みSecret: `AUTH_HMAC_SECRET`、`GOOGLE_TTS_API_KEY`、`GOOGLE_OAUTH_CLIENT_SECRET`
 - 検証済み実装commit: `82289340a2b8d8c79e08ddaa80b56a3fb3f52719`
 - 検証済みWorker version: `05d25035-c207-41b5-b78e-2924f0ac97fe`
 
-D1/KVの実IDは `worker/wrangler.jsonc` が正本。既存リソースを再作成しない。
+D1/KV/R2の実設定は `worker/wrangler.jsonc` が正本。既存リソースを再作成しない。
 現在のWorker versionは次で確認する。
 
 ```bash
@@ -53,6 +54,9 @@ npm --prefix worker run db:migrate:remote
 npm --prefix worker run deploy:dry-run
 npm --prefix worker run deploy
 ```
+
+初回だけ、`wrangler r2 bucket list`で存在を確認してから
+`bookreader-attachments`を作成する。既存バケットへcreateを再実行しない。
 
 デプロイ後はローカルと公開URLの両方でsmoke testを実行する。
 

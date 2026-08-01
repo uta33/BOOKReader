@@ -46,6 +46,7 @@ export interface DiagnosticsInfo {
     tts: boolean;
     ocr: boolean;
     googleAuth: boolean;
+    attachments: boolean;
   };
   quota: {
     day: string;

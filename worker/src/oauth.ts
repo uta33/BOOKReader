@@ -7,6 +7,7 @@ import {
 import { ApiError } from './errors';
 import { randomToken, sha256, uuid } from './crypto';
 import { mergeAccounts } from './merge';
+import { deleteUserAttachmentObjects } from './attachments';
 import {
   consumeIpHourlySlot,
   deleteUserStatements,
@@ -184,6 +185,7 @@ export async function confirmWebDeletion(env: Env, token: unknown): Promise<void
     .bind(await sha256(token), Date.now())
     .first<{ state_hash: string; user_id: string | null }>();
   if (!flow?.user_id) throw new ApiError(400, 'Deletion confirmation is invalid or expired');
+  await deleteUserAttachmentObjects(env, flow.user_id);
   await env.DB.batch([
     env.DB.prepare(
       `UPDATE web_deletion_flows SET status = 'consumed' WHERE state_hash = ? AND status = 'confirmed'`,

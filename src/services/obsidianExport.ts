@@ -7,6 +7,9 @@ export const OBSIDIAN_FOLDER = 'READING NOTE';
 /** 画像付き書き出しで使う、Vault内のアプリ専用添付フォルダ。 */
 export const OBSIDIAN_ATTACHMENTS_FOLDER = '_attachments';
 
+export const OBSIDIAN_MANAGED_BEGIN = '<!-- READING NOTE:BEGIN -->';
+export const OBSIDIAN_MANAGED_END = '<!-- READING NOTE:END -->';
+
 /** 長いURIがOSやブラウザで切られないよう、本文をクリップボードへ切り替える境界。 */
 const URI_LENGTH_LIMIT = 15_000;
 
@@ -184,10 +187,54 @@ export function buildObsidianNote(
   }
   parts.push('');
 
+  const frontmatterEnd = parts.indexOf('---', 1);
+  const frontmatter = parts.slice(0, frontmatterEnd + 1);
+  const body = parts.slice(frontmatterEnd + 2);
+
   return {
     name: sanitizeNoteName(book.title),
-    content: parts.join('\n'),
+    content: [
+      ...frontmatter,
+      '',
+      OBSIDIAN_MANAGED_BEGIN,
+      ...body,
+      OBSIDIAN_MANAGED_END,
+      '',
+    ].join('\n'),
   };
+}
+
+export type ObsidianManagedUpdate = 'updated' | 'preserved-existing';
+
+/**
+ * 既存ノートのユーザー編集を残し、READING NOTE管理範囲だけを更新する。
+ * 旧形式に管理マーカーが無ければ、既存内容を保持したまま最新ブロックを末尾へ追加する。
+ */
+export function mergeObsidianManagedContent(
+  existing: string,
+  generated: string,
+): { content: string; mode: ObsidianManagedUpdate } {
+  const generatedBlock = managedBlock(generated);
+  const begin = existing.indexOf(OBSIDIAN_MANAGED_BEGIN);
+  const end = existing.indexOf(OBSIDIAN_MANAGED_END, begin + OBSIDIAN_MANAGED_BEGIN.length);
+  if (begin >= 0 && end >= begin) {
+    return {
+      content: `${existing.slice(0, begin)}${generatedBlock}${existing.slice(end + OBSIDIAN_MANAGED_END.length)}`,
+      mode: 'updated',
+    };
+  }
+  const preserved = existing.trimEnd();
+  return {
+    content: `${preserved}${preserved ? '\n\n---\n\n' : ''}${generatedBlock}\n`,
+    mode: 'preserved-existing',
+  };
+}
+
+function managedBlock(content: string): string {
+  const begin = content.indexOf(OBSIDIAN_MANAGED_BEGIN);
+  const end = content.indexOf(OBSIDIAN_MANAGED_END, begin + OBSIDIAN_MANAGED_BEGIN.length);
+  if (begin < 0 || end < begin) throw new Error('READING NOTE管理範囲を生成できませんでした。');
+  return content.slice(begin, end + OBSIDIAN_MANAGED_END.length);
 }
 
 /**

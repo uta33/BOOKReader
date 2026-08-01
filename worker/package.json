@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "typecheck": "tsc --noEmit",
-    "test:unit": "tsx tests/limits.test.mts && tsx tests/quota.test.mts && tsx tests/diagnostics.test.mts && tsx tests/merge.test.mts && tsx tests/oauth.test.mts",
+    "test:unit": "tsx tests/limits.test.mts && tsx tests/quota.test.mts && tsx tests/diagnostics.test.mts && tsx tests/attachments.test.mts && tsx tests/sync.test.mts && tsx tests/merge.test.mts && tsx tests/oauth.test.mts",
     "test:smoke": "node tests/smoke-local.mjs",
     "test": "npm run typecheck && npm run test:unit",
     "db:migrate:local": "wrangler d1 migrations apply bookreader --local",

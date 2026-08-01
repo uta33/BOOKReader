@@ -930,6 +930,7 @@ function DiagnosticsPanel({ value }: { value: DiagnosticsInfo }) {
     ['AI要約・クイズ', value.services.summary && value.services.quiz],
     ['音声読み上げ', value.services.tts],
     ['画像OCR', value.services.ocr],
+    ['画像バックアップ', value.services.attachments],
     ['Google認証', value.services.googleAuth],
   ];
   return (
