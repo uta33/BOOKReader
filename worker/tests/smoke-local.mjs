@@ -262,7 +262,13 @@ try {
     headers: { ...authorization, 'Content-Type': 'application/json' },
     body: JSON.stringify({ text: 'テスト' }),
   });
-  if (tts.body.fallback !== true) throw new Error('TTS fallback contract changed');
+  const ttsMode =
+    tts.body.fallback === true
+      ? 'fallback'
+      : typeof tts.body.audioContent === 'string' && tts.body.audioContent.length > 0
+        ? 'provider'
+        : null;
+  if (!ttsMode) throw new Error('TTS response contract changed');
 
   const oversized = await request(
     '/api/generate-summary',
@@ -402,7 +408,7 @@ try {
         twoDeviceDogEarUnion: true,
         attachmentUploadDownloadDelete: true,
         diagnosticsAttachments: true,
-        ttsFallback: tts.body.fallback,
+        ttsMode,
         summaryQuota: '20 accepted, 21st rejected',
         deletionTicket: true,
         accountDeleteRevokedOldToken: true,
