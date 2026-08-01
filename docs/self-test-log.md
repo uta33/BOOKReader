@@ -213,6 +213,29 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - APK展開検査: openBD/Open Library/公開Worker URLを確認し、`AIza`／`GOCSPX`／`sk-ant-`／旧TTS環境変数名 0件
 - 実機未確認: 1.6.0からの上書き、JAN登録時の自動保存、既存本の候補選択、オフライン再表示、別端末同期後の再取得
 
+### 日本語書影検索強化版 1.8.0（2026-08-02）
+
+- 原因: openBDの`summary.cover`だけではONIX内の書影を取りこぼし、Open LibraryとGoogle Booksの厳密な日本語書名検索も未収録時に候補が空になった
+- openBD: ONIX `CollateralDetail.SupportingResource`の表紙（種別01）を追加取得し、商品写真は除外
+- Google Books: ISBN完全一致のDynamic Links書影を最優先にし、不在時だけVolumes APIのISBN・書名検索へフォールバック
+- 検索品質: 一般検索は正規化後の書名一致候補だけを採用し、無関係な表紙を除外
+- セキュリティ: Google CloudでBooks APIを有効化し、Books APIだけに制限した専用キーを`GOOGLE_BOOKS_API_KEY`としてWorker Secretへ登録。APK／Gitには保存しない
+- 濫用対策: 認証必須の`GET /v1/books/covers`と利用者ごと100回/UTC日のD1クォータを追加
+- D1 migration: `0005_book_cover_quota.sql`を本番へ適用済み
+- implementation commit: `dec1ddd`
+- Worker version: `64e04a85-7286-48c1-a921-6b9d5c33b260`
+- 本番確認: `思考の整理学`（9784480020475）、`こころ`（9784101010137）、`コンビニ人間`（9784167911300）の3冊すべてでISBN完全一致1件・`books.google.com`画像応答成功
+- 本番試験データ: D1へ一時セッションを作成して認証経路を通し、各検証後にアカウント削除済み
+- package / version: `com.uta33.bookreader` / `1.8.0`（`versionCode 15`）
+- EAS build: `f451cbeb-bcdc-47f8-a69e-a2687566ec35`（status `FINISHED`、2026-08-15まで）
+- build page: <https://expo.dev/accounts/utasan0811/projects/bookreader/builds/f451cbeb-bcdc-47f8-a69e-a2687566ec35>
+- APK SHA-256: `211DF447FD2B5990FCA01C13E0F4A3BF93AA45386F59E32DAEDB09BB737A7073`
+- ローカル成果物: `.expo/READING-NOTE-1.8.0-cover-search-preview.apk`（git管理外、126,804,459 bytes）
+- 署名: APK v2、既存版と同じ証明書SHA-256 `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64efa2b3b`
+- 検証: `npm test`、Expo Doctor 20/20、Android Hermes export、Worker dry-run、本番書影3冊、EAS build、配布URL HTTP 200
+- APK展開検査: Google Books／openBD／Open Library／公開Worker URLを確認し、`AIza`／`GOCSPX`／`sk-ant-`／旧TTS環境変数名 0件
+- 実機未確認: 1.7.1からの上書き、JAN登録時の自動採用、既存本の候補選択、再起動後の端末保存表紙、別端末同期後の再取得
+
 ## 自動preflight（2026-07-28）
 
 - [x] ルート／PWA／Workerの型検査とユニットテスト

@@ -7,9 +7,9 @@
 - KV: `JWKS_CACHE`
 - R2: `bookreader-attachments`（binding `ATTACHMENTS`）
 - Cron: 毎日 `03:17 UTC`
-- 設定済みSecret: `AUTH_HMAC_SECRET`、`GOOGLE_TTS_API_KEY`、`GOOGLE_OAUTH_CLIENT_SECRET`
-- 検証済み実装commit: `a8519b9`
-- 検証済みWorker version: `dbb63d42-2fa2-470b-8d7e-ebfd98836842`
+- 設定済みSecret: `AUTH_HMAC_SECRET`、`GOOGLE_TTS_API_KEY`、`GOOGLE_BOOKS_API_KEY`、`GOOGLE_OAUTH_CLIENT_SECRET`
+- 検証済み実装commit: `dec1ddd`
+- 検証済みWorker version: `64e04a85-7286-48c1-a921-6b9d5c33b260`
 
 D1/KV/R2の実設定は `worker/wrangler.jsonc` が正本。既存リソースを再作成しない。
 現在のWorker versionは次で確認する。
@@ -114,6 +114,11 @@ eas build --platform android --profile preview --local --non-interactive \
 一致することを確認した。表示名とアイコンを更新した1.1.0（versionCode 4）も同じ鍵で
 生成し、証明書SHA-256の一致を確認した。アダプティブアイコンの余白を広げた1.1.1
 （versionCode 5）も同じ鍵で生成し、APK v2署名、パッケージ名、APIキー非混入を確認した。
+
+2026-08-02の1.8.0（versionCode 15）preview buildは
+`f451cbeb-bcdc-47f8-a69e-a2687566ec35`。Books API専用キーはGoogle Cloud側で
+Books APIだけに制限し、Worker Secretへ登録した。APKにはキーを含めず、ISBN完全一致の
+Dynamic Links書影と、見つからない場合のVolumes検索をWorker経由で利用する。
 
 ## 一時D1への復元ドリル
 
