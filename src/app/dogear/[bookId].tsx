@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,29 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../../constants/colors';
 import { QUOTE_TEXT } from '../../constants/typography';
 import { ScreenHeader } from '../../components/common/ScreenHeader';
+import {
+  persistDogEarImage,
+  removeManagedDogEarImage,
+  type PendingDogEarImage,
+} from '../../services/dogEarImage';
 import { useLibraryStore } from '../../store/libraryStore';
+
+function selectedImage(result: ImagePicker.ImagePickerResult): PendingDogEarImage | null {
+  if (result.canceled || !result.assets[0]) return null;
+  const asset = result.assets[0];
+  return { uri: asset.uri, fileName: asset.fileName, mimeType: asset.mimeType };
+}
 
 export default function DogEarScreen() {
   const router = useRouter();
@@ -27,12 +41,29 @@ export default function DogEarScreen() {
 
   const book = books.find((b) => b.id === bookId);
   const existing = dogEarId ? book?.dogEars.find((d) => d.id === dogEarId) : undefined;
+  const draftId = useRef(
+    existing?.id ?? `de_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+  );
 
   // すべてローカル state。保存を押したときだけストアに書く。
   const [page, setPage] = useState(existing?.page ? String(existing.page) : '');
   const [line, setLine] = useState(existing?.line != null ? String(existing.line) : '');
   const [quote, setQuote] = useState(existing?.quote ?? '');
   const [comment, setComment] = useState(existing?.comment ?? '');
+  const [photo, setPhoto] = useState<PendingDogEarImage | null>(
+    existing?.photoUri ? { uri: existing.photoUri } : null,
+  );
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    void ImagePicker.getPendingResultAsync().then((pending) => {
+      if (pending && 'canceled' in pending) {
+        const image = selectedImage(pending);
+        if (image) setPhoto(image);
+      }
+    }).catch(() => undefined);
+  }, []);
 
   if (!book) {
     return (
@@ -45,27 +76,84 @@ export default function DogEarScreen() {
 
   const canSave = quote.trim().length > 0;
 
-  const onSave = () => {
-    if (!canSave) return;
+  const onSave = async () => {
+    if (!canSave || saving) return;
+    setSaving(true);
     const parsedPage = Number.parseInt(page, 10);
     const parsedLine = Number.parseInt(line, 10);
-    const fields = {
-      page: Number.isFinite(parsedPage) ? Math.max(0, parsedPage) : 0,
-      line: Number.isFinite(parsedLine) ? Math.max(1, parsedLine) : undefined,
-      quote: quote.trim(),
-      comment: comment.trim() || undefined,
-    };
+    let savedPhotoUri = photo?.uri;
+    let createdPhotoUri: string | undefined;
 
-    if (existing) {
-      updateDogEar(book.id, existing.id, fields);
-    } else {
-      addDogEar(book.id, {
-        id: `de_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        createdAt: Date.now(),
-        ...fields,
-      });
+    try {
+      if (photo && photo.uri !== existing?.photoUri) {
+        createdPhotoUri = await persistDogEarImage(photo, draftId.current);
+        savedPhotoUri = createdPhotoUri;
+      }
+
+      const fields = {
+        page: Number.isFinite(parsedPage) ? Math.max(0, parsedPage) : 0,
+        line: Number.isFinite(parsedLine) ? Math.max(1, parsedLine) : undefined,
+        quote: quote.trim(),
+        comment: comment.trim() || undefined,
+        photoUri: savedPhotoUri,
+      };
+
+      if (existing) {
+        updateDogEar(book.id, existing.id, fields);
+      } else {
+        addDogEar(book.id, {
+          id: draftId.current,
+          createdAt: Date.now(),
+          ...fields,
+        });
+      }
+
+      if (existing?.photoUri && existing.photoUri !== savedPhotoUri) {
+        removeManagedDogEarImage(existing.photoUri);
+      }
+      router.back();
+    } catch (error) {
+      if (createdPhotoUri) removeManagedDogEarImage(createdPhotoUri);
+      Alert.alert('画像を保存できませんでした', error instanceof Error ? error.message : String(error));
+    } finally {
+      setSaving(false);
     }
-    router.back();
+  };
+
+  const takePhoto = async () => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('カメラを使えません', '設定でカメラを許可してから、もう一度お試しください。');
+        return;
+      }
+      const image = selectedImage(
+        await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          allowsEditing: false,
+          quality: 1,
+          cameraType: ImagePicker.CameraType.back,
+        }),
+      );
+      if (image) setPhoto(image);
+    } catch (error) {
+      Alert.alert('撮影できませんでした', error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const choosePhoto = async () => {
+    try {
+      const image = selectedImage(
+        await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: false,
+          quality: 1,
+        }),
+      );
+      if (image) setPhoto(image);
+    } catch (error) {
+      Alert.alert('画像を選べませんでした', error instanceof Error ? error.message : String(error));
+    }
   };
 
   const onDelete = () => {
@@ -77,6 +165,7 @@ export default function DogEarScreen() {
         style: 'destructive',
         onPress: () => {
           removeDogEar(book.id, existing.id);
+          removeManagedDogEarImage(existing.photoUri);
           router.back();
         },
       },
@@ -161,6 +250,59 @@ export default function DogEarScreen() {
             />
           </View>
 
+          <View>
+            <Text style={styles.label}>図・グラフ・写真（任意）</Text>
+            {photo ? (
+              <View style={styles.photoCard}>
+                <Image
+                  source={{ uri: photo.uri }}
+                  style={styles.photo}
+                  resizeMode="contain"
+                  accessible
+                  accessibilityLabel="抜き書きに添付した画像"
+                />
+                <View style={styles.photoActions}>
+                  <TouchableOpacity
+                    style={styles.photoAction}
+                    onPress={() => void choosePhoto()}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.photoActionText}>選び直す</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.photoAction, styles.photoRemove]}
+                    onPress={() => setPhoto(null)}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.photoRemoveText}>画像を外す</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.photoActions}>
+                <TouchableOpacity
+                  style={styles.photoAction}
+                  onPress={() => void takePhoto()}
+                  accessibilityRole="button"
+                  accessibilityLabel="カメラで図やグラフを撮影"
+                >
+                  <Text style={styles.photoActionText}>カメラで撮る</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.photoAction}
+                  onPress={() => void choosePhoto()}
+                  accessibilityRole="button"
+                  accessibilityLabel="端末から図やグラフの画像を選ぶ"
+                >
+                  <Text style={styles.photoActionText}>端末から選ぶ</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            <Text style={styles.photoHint}>
+              文字のある図を読めるよう、切り抜きや圧縮をせず元の比率で保存します。
+            </Text>
+          </View>
+
           <Text style={styles.helper}>
             折ったページの角を開いて、
             <Text style={styles.helperStrong}>線を引いた箇所をそのまま書き写す</Text>。
@@ -171,10 +313,15 @@ export default function DogEarScreen() {
         <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.saveBtn, !canSave && styles.disabled]}
-            onPress={onSave}
-            disabled={!canSave}
+            onPress={() => void onSave()}
+            disabled={!canSave || saving}
+            accessibilityRole="button"
           >
-            <Text style={styles.saveText}>保存する</Text>
+            {saving ? (
+              <ActivityIndicator size="small" color={COLORS.onAccent} />
+            ) : (
+              <Text style={styles.saveText}>保存する</Text>
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -215,6 +362,31 @@ const styles = StyleSheet.create({
   },
   genko: { ...QUOTE_TEXT, color: COLORS.text, minHeight: 150 },
   commentInput: { minHeight: 70, fontSize: 14 },
+
+  photoCard: {
+    backgroundColor: COLORS.cardElevated,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: 10,
+    gap: 10,
+  },
+  photo: { width: '100%', height: 240, borderRadius: 8, backgroundColor: COLORS.bg },
+  photoActions: { flexDirection: 'row', gap: 10 },
+  photoAction: {
+    flex: 1,
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  photoActionText: { color: COLORS.accent, fontSize: 13, fontWeight: '700' },
+  photoRemove: { borderColor: '#b54b4b' },
+  photoRemoveText: { color: '#b54b4b', fontSize: 13, fontWeight: '700' },
+  photoHint: { color: COLORS.muted, fontSize: 11.5, lineHeight: 18, marginTop: 7 },
 
   helper: { color: COLORS.muted, fontSize: 11.5, lineHeight: 19 },
   helperStrong: { color: COLORS.shu, fontWeight: '700' },

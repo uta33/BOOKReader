@@ -1,6 +1,8 @@
 import {
   buildObsidianExport,
   buildObsidianNote,
+  buildObsidianOpenUri,
+  dogEarAttachmentName,
   sanitizeNoteName,
 } from '../../src/services/obsidianExport.js';
 import type { Book } from '../../src/types/book.js';
@@ -32,6 +34,7 @@ const book: Book = {
       line: 3,
       quote: '本当に重要なことだけを選ぶ。\nそれ以外は断る。',
       comment: '明日の予定を一つ減らす。',
+      photoUri: 'file:///data/user/0/com.uta33.bookreader/files/dog-ear-images/d1.png',
       createdAt: Date.UTC(2026, 6, 21),
     },
     {
@@ -81,6 +84,18 @@ ok(note.content.includes('## まとめ\n\nより少なく、しかしより良�
 ok(note.content.includes('## ふりかえり（自分の言葉）'), 'ふりかえりを出力する');
 ok(note.content.includes('[資料 \\[PDF\\]](https://example.com/note)'), 'リンクラベルをエスケープする');
 ok(note.content.includes('[画像を開く](https://example.com/cover.jpg)'), '表紙リンクを出力する');
+ok(!note.content.includes('_attachments'), '通常URI書き出しに端末内画像の壊れた参照を入れない');
+
+const attachmentName = dogEarAttachmentName(book.id, 'd1', book.dogEars[0].photoUri!);
+ok(
+  attachmentName === 'reading-note-paper_1-d1.png',
+  `画像の決定的なファイル名を作る（${attachmentName}）`,
+);
+const imageNote = buildObsidianNote(book, now, { dogEarImages: { d1: attachmentName } });
+ok(
+  imageNote.content.includes('![[READING NOTE/_attachments/reading-note-paper_1-d1.png|720]]'),
+  'Vaultへコピーした画像をドッグイヤーへ埋め込む',
+);
 
 const shortExport = buildObsidianExport(book, 'My Vault', { overwrite: true, now });
 const shortUrl = new URL(shortExport.uri);
@@ -97,6 +112,10 @@ ok(shortUrl.searchParams.get('content') === shortExport.content, 'URI本文がMa
 const noVault = buildObsidianExport(book, undefined, { now });
 ok(!noVault.uri.includes('vault='), 'Vault未指定なら最後に開いたVaultへ倒す');
 ok(!noVault.uri.includes('overwrite='), '明示しなければ上書きしない');
+
+const openUrl = new URL(buildObsidianOpenUri(note.name, 'My Vault'));
+ok(openUrl.searchParams.get('file') === `READING NOTE/${note.name}`, '直接保存したノートを開く');
+ok(openUrl.searchParams.get('vault') === 'My Vault', '直接保存先のVaultを開く');
 
 const longBook: Book = { ...book, summary: '長い要約です。'.repeat(3_000) };
 const longExport = buildObsidianExport(longBook, 'My Vault', { overwrite: true, now });

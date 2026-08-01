@@ -12,11 +12,16 @@ interface SettingsState {
   apiBaseUrl: string;
   /** Obsidian URIで送るVault名。空ならObsidianで最後に開いたVaultを使う。 */
   obsidianVault: string;
+  /** 画像付き書き出し用にAndroid Storage Access Frameworkから得たVaultルートURI。 */
+  obsidianDirectoryUri: string;
+  /** 選択済みVaultフォルダの表示名。 */
+  obsidianDirectoryName: string;
   setVoice: (name: string) => void;
   setSpeedIdx: (idx: number) => void;
   setPitch: (pitch: number) => void;
   setApiBaseUrl: (url: string) => void;
   setObsidianVault: (vault: string) => void;
+  setObsidianDirectory: (uri: string, name: string) => void;
   loadSettings: () => Promise<void>;
   saveSettings: () => Promise<void>;
 }
@@ -30,6 +35,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   speedStepIdx: DEFAULT_SPEED_IDX,
   apiBaseUrl: '',
   obsidianVault: '',
+  obsidianDirectoryUri: '',
+  obsidianDirectoryName: '',
 
   setVoice: (name) => {
     set({ voiceName: name });
@@ -51,6 +58,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ obsidianVault: vault });
     get().saveSettings();
   },
+  setObsidianDirectory: (uri, name) => {
+    set({ obsidianDirectoryUri: uri, obsidianDirectoryName: name });
+    get().saveSettings();
+  },
 
   loadSettings: async () => {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
@@ -63,10 +74,28 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   // フィールドを明示的に列挙している。新しい設定を足すときはここにも
   // 追加しないと、loadSettings は素通しなので配線済みに見えたまま永続化されない。
   saveSettings: async () => {
-    const { voiceName, speakingRate, pitch, speedStepIdx, apiBaseUrl, obsidianVault } = get();
+    const {
+      voiceName,
+      speakingRate,
+      pitch,
+      speedStepIdx,
+      apiBaseUrl,
+      obsidianVault,
+      obsidianDirectoryUri,
+      obsidianDirectoryName,
+    } = get();
     await AsyncStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ voiceName, speakingRate, pitch, speedStepIdx, apiBaseUrl, obsidianVault }),
+      JSON.stringify({
+        voiceName,
+        speakingRate,
+        pitch,
+        speedStepIdx,
+        apiBaseUrl,
+        obsidianVault,
+        obsidianDirectoryUri,
+        obsidianDirectoryName,
+      }),
     );
   },
 }));

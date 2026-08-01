@@ -55,6 +55,36 @@ assert.equal(
   false,
 );
 
+const photoPreserved = applyServerChanges(
+  [
+    book({
+      dogEars: [
+        {
+          id: 'dog-photo',
+          page: 2,
+          quote: '端末の引用',
+          photoUri: 'file:///private/diagram.png',
+          createdAt: 2,
+          updatedAt: 3,
+          originDeviceId: 'device-a',
+        },
+      ],
+    }),
+  ],
+  [
+    {
+      entity: 'dogEar',
+      id: 'dog-photo',
+      bookId: 'book-1',
+      data: { page: 3, quote: '別端末で更新', createdAt: 2 },
+      updatedAt: 4,
+      originDeviceId: 'device-b',
+    },
+  ],
+)[0];
+assert.equal(photoPreserved.dogEars[0].quote, '別端末で更新');
+assert.equal(photoPreserved.dogEars[0].photoUri, 'file:///private/diagram.png');
+
 const olderRemote: SyncChange = {
   entity: 'book',
   id: 'book-1',

@@ -27,7 +27,12 @@ import { LinkRow } from '../../components/note/LinkRow';
 import { AddLinkModal } from '../../components/note/AddLinkModal';
 import { finishedSeq, notePosition } from '../../services/readingProgress';
 import { generateSummary, isSummaryApiConfigured } from '../../services/summaryApi';
-import { buildObsidianExport } from '../../services/obsidianExport';
+import { buildObsidianExport, buildObsidianOpenUri } from '../../services/obsidianExport';
+import {
+  exportBookToObsidianDirectory,
+  isDirectoryPickerCancellation,
+  pickObsidianVaultDirectory,
+} from '../../services/obsidianDirectory';
 import { useLibraryStore } from '../../store/libraryStore';
 import { useSettingsStore } from '../../store/settingsStore';
 
@@ -54,6 +59,9 @@ export default function NoteScreen() {
 
   const apiBaseUrl = useSettingsStore((s) => s.apiBaseUrl);
   const obsidianVault = useSettingsStore((s) => s.obsidianVault);
+  const obsidianDirectoryUri = useSettingsStore((s) => s.obsidianDirectoryUri);
+  const obsidianDirectoryName = useSettingsStore((s) => s.obsidianDirectoryName);
+  const setObsidianDirectory = useSettingsStore((s) => s.setObsidianDirectory);
   // 設定が変わったら判定し直す（apiBaseUrl を依存に置くため useMemo）。
   const aiAvailable = useMemo(() => isSummaryApiConfigured(), [apiBaseUrl]);
 
@@ -130,20 +138,56 @@ export default function NoteScreen() {
     }
 
     try {
+      let directoryUri = obsidianDirectoryUri;
+      let directoryName = obsidianDirectoryName;
+      const hasImages = snapshot.dogEars.some((dogEar) => Boolean(dogEar.photoUri));
+
+      if (hasImages && Platform.OS === 'android' && !directoryUri) {
+        const selection = await pickObsidianVaultDirectory();
+        directoryUri = selection.uri;
+        directoryName = selection.name;
+        setObsidianDirectory(selection.uri, selection.name);
+      }
+
+      if (Platform.OS === 'android' && directoryUri) {
+        const result = await exportBookToObsidianDirectory(snapshot, directoryUri);
+        try {
+          await Linking.openURL(
+            buildObsidianOpenUri(result.noteName, obsidianVault.trim() || directoryName),
+          );
+        } catch {
+          Alert.alert(
+            '書き出しは完了しました',
+            `Markdownと画像${result.imageCount}件をVaultへ保存しましたが、Obsidianを開けませんでした。`,
+          );
+        }
+        return;
+      }
+
+      if (hasImages) {
+        throw new Error('画像付き書き出しには、設定でVaultフォルダを選択してください。');
+      }
       const result = buildObsidianExport(snapshot, obsidianVault, { overwrite: true });
       if (result.viaClipboard) await Clipboard.setStringAsync(result.content);
       await Linking.openURL(result.uri);
-    } catch {
-      setObsidianError(
-        'Obsidianへ送れませんでした。端末にObsidianがあることと、Vault名を確認してください。',
-      );
+    } catch (error) {
+      if (isDirectoryPickerCancellation(error)) return;
+      setObsidianError(error instanceof Error
+        ? error.message
+        : 'Obsidianへ送れませんでした。端末にObsidianがあることと、Vault名を確認してください。');
     }
   };
 
   const confirmObsidianExport = () => {
+    const hasImages = book.dogEars.some((dogEar) => Boolean(dogEar.photoUri));
+    const directoryMessage = hasImages
+      ? obsidianDirectoryUri
+        ? `画像は「READING NOTE/_attachments」へコピーします（${obsidianDirectoryName || '選択済みVault'}）。`
+        : '画像を含めるため、次にObsidian Vaultのルートフォルダを選びます。初回だけ必要です。'
+      : '';
     Alert.alert(
       'Obsidianへ書き出す',
-      'Vaultの「READING NOTE」フォルダへ保存します。同名ノートがある場合は内容を置き換えます。Obsidian側で追記した内容も置き換わるため確認してください。',
+      `Vaultの「READING NOTE」フォルダへ保存します。${directoryMessage}\n\n同名ノートがある場合は内容を置き換えます。Obsidian側で追記した内容も置き換わるため確認してください。`,
       [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -295,7 +339,7 @@ export default function NoteScreen() {
               <Text style={styles.obsidianText}>Obsidianへ書き出す</Text>
             </TouchableOpacity>
             <Text style={styles.obsidianHint}>
-              書誌・目的・ドッグイヤー・まとめ・ふりかえり・リンクをMarkdownで保存します。
+              書誌・目的・ドッグイヤー・画像・まとめ・ふりかえり・リンクをMarkdownで保存します。
             </Text>
             {obsidianError && (
               <Text style={styles.obsidianError} accessibilityLiveRegion="polite">

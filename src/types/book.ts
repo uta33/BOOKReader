@@ -24,7 +24,7 @@ export interface DogEar {
   updatedAt?: number;
   deletedAt?: number;
   originDeviceId?: string;
-  /** 将来のOCR用。現状は常に undefined。 */
+  /** 図・グラフ・写真の端末内URI。同期ペイロードには含めない。 */
   photoUri?: string;
 }
 

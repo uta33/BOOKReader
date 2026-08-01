@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
@@ -22,6 +23,11 @@ import { generatePreview } from '../../services/googleTTS';
 import * as Clipboard from 'expo-clipboard';
 import { isApiConfigured } from '../../services/authClient';
 import { syncNow } from '../../services/syncEngine';
+import {
+  canAccessObsidianDirectory,
+  isDirectoryPickerCancellation,
+  pickObsidianVaultDirectory,
+} from '../../services/obsidianDirectory';
 import {
   createAccountDeletionTicket,
   deleteCurrentAccount,
@@ -43,11 +49,14 @@ export default function SettingsScreen() {
     speedStepIdx,
     apiBaseUrl,
     obsidianVault,
+    obsidianDirectoryUri,
+    obsidianDirectoryName,
     setVoice,
     setSpeedIdx,
     setPitch,
     setApiBaseUrl,
     setObsidianVault,
+    setObsidianDirectory,
   } = useSettingsStore();
 
   const [genderFilter, setGenderFilter] = useState<'all' | 'female' | 'male'>('all');
@@ -331,7 +340,11 @@ export default function SettingsScreen() {
 
   const testObsidianConnection = useCallback(async () => {
     setObsidianError(null);
-    const vault = obsidianVault.trim();
+    if (obsidianDirectoryUri && !canAccessObsidianDirectory(obsidianDirectoryUri)) {
+      setObsidianError('Vaultフォルダへのアクセスが切れています。フォルダを選び直してください。');
+      return;
+    }
+    const vault = obsidianVault.trim() || obsidianDirectoryName.trim();
     const uri = vault
       ? `obsidian://open?vault=${encodeURIComponent(vault)}`
       : 'obsidian://choose-vault';
@@ -340,7 +353,28 @@ export default function SettingsScreen() {
     } catch {
       setObsidianError('Obsidianを開けませんでした。端末にObsidianをインストールしてください。');
     }
-  }, [obsidianVault]);
+  }, [obsidianDirectoryName, obsidianDirectoryUri, obsidianVault]);
+
+  const selectObsidianDirectory = useCallback(async () => {
+    setObsidianError(null);
+    if (Platform.OS !== 'android') {
+      setObsidianError('画像付きの直接書き出しは、現在Android版で利用できます。');
+      return;
+    }
+    try {
+      const selection = await pickObsidianVaultDirectory(obsidianDirectoryUri || undefined);
+      setObsidianDirectory(selection.uri, selection.name);
+      Alert.alert(
+        'Vaultフォルダを設定しました',
+        `${selection.name} にMarkdownと画像を書き出せます。`,
+      );
+    } catch (error) {
+      if (isDirectoryPickerCancellation(error)) return;
+      setObsidianError(
+        error instanceof Error ? error.message : 'Vaultフォルダを選択できませんでした。',
+      );
+    }
+  }, [obsidianDirectoryUri, setObsidianDirectory]);
 
   const filteredVoices =
     genderFilter === 'all' ? VOICES : VOICES.filter((v) => v.gender === genderFilter);
@@ -517,6 +551,34 @@ export default function SettingsScreen() {
             本ごとのノート画面から、Vault内の「READING NOTE」フォルダへ書き出します。
             Obsidianアプリが必要です。
           </Text>
+          <Text style={[styles.accountPrimary, styles.obsidianFolderLabel]}>
+            画像付き書き出し
+          </Text>
+          <Text style={styles.apiHint}>
+            {obsidianDirectoryUri
+              ? `選択済み: ${obsidianDirectoryName || 'Vaultフォルダ'}`
+              : '未設定。図・グラフを添付する場合は、Vaultのルートフォルダを一度選びます。'}
+          </Text>
+          <TouchableOpacity
+            style={styles.accountButton}
+            onPress={() => void selectObsidianDirectory()}
+            accessibilityRole="button"
+            accessibilityLabel="画像付き書き出し用のObsidian Vaultフォルダを選ぶ"
+          >
+            <Text style={styles.accountButtonText}>
+              {obsidianDirectoryUri ? 'Vaultフォルダを選び直す' : 'Vaultフォルダを選ぶ（画像対応）'}
+            </Text>
+          </TouchableOpacity>
+          {obsidianDirectoryUri && (
+            <TouchableOpacity
+              style={styles.accountButton}
+              onPress={() => setObsidianDirectory('', '')}
+              accessibilityRole="button"
+              accessibilityLabel="Obsidian Vaultフォルダ設定を解除"
+            >
+              <Text style={styles.accountButtonText}>フォルダ設定を解除</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.accountButton}
             onPress={() => void testObsidianConnection()}
@@ -684,6 +746,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   accountButtonText: { color: COLORS.accent, fontSize: 13, fontWeight: '700' },
+  obsidianFolderLabel: { marginTop: 16 },
   destructiveButton: { borderColor: '#b54b4b' },
   destructiveText: { color: '#b54b4b', fontSize: 13, fontWeight: '700' },
   apiLabel: { color: COLORS.muted, fontSize: 11.5, fontWeight: '700', letterSpacing: 0.5 },

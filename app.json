@@ -2,7 +2,7 @@
   "expo": {
     "name": "READING NOTE",
     "slug": "bookreader",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "icon": "./web/public/icon-reading-note-1024.png",
     "orientation": "portrait",
     "scheme": "bookreader",
@@ -21,7 +21,7 @@
     },
     "android": {
       "package": "com.uta33.bookreader",
-      "versionCode": 7,
+      "versionCode": 8,
       "adaptiveIcon": {
         "foregroundImage": "./web/public/icon-reading-note-foreground.png",
         "monochromeImage": "./web/public/icon-reading-note-monochrome.png",
@@ -42,6 +42,14 @@
         }
       ],
       "expo-document-picker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "読書ノートへ図・グラフ・写真を添付するために画像を選びます。",
+          "cameraPermission": "本の図・グラフ・写真を読書ノートへ添付するためにカメラを使います。",
+          "microphonePermission": false
+        }
+      ],
       [
         "expo-camera",
         {

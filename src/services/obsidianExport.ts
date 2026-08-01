@@ -4,6 +4,9 @@ import type { Book } from '../types/book';
 /** Obsidian側に作るアプリ専用フォルダ。 */
 export const OBSIDIAN_FOLDER = 'READING NOTE';
 
+/** 画像付き書き出しで使う、Vault内のアプリ専用添付フォルダ。 */
+export const OBSIDIAN_ATTACHMENTS_FOLDER = '_attachments';
+
 /** 長いURIがOSやブラウザで切られないよう、本文をクリップボードへ切り替える境界。 */
 const URI_LENGTH_LIMIT = 15_000;
 
@@ -23,6 +26,11 @@ export interface ObsidianExportOptions {
   overwrite?: boolean;
   /** テストで日時を固定するために注入可能。 */
   now?: Date;
+}
+
+export interface ObsidianNoteOptions {
+  /** dogEar.id -> Vault内に保存した画像ファイル名。 */
+  dogEarImages?: Readonly<Record<string, string>>;
 }
 
 /** Obsidianと端末のファイル名で使えない文字を取り除く。 */
@@ -70,8 +78,30 @@ function markdownLinkLabel(value: string): string {
   return inline(value).replace(/([\\\[\]])/g, '\\$1');
 }
 
+function safeFileSegment(value: string, fallback: string): string {
+  const result = value.replace(/[^A-Za-z0-9_-]/g, '_').replace(/_+/g, '_').slice(0, 48);
+  return result || fallback;
+}
+
+/** 端末内画像から、Vault内で衝突しにくい決定的なファイル名を作る。 */
+export function dogEarAttachmentName(bookId: string, dogEarId: string, photoUri: string): string {
+  const path = photoUri.split(/[?#]/, 1)[0];
+  const match = path.match(/\.([A-Za-z0-9]+)$/);
+  const rawExtension = match?.[1]?.toLowerCase();
+  const extension = rawExtension === 'jpeg' ? 'jpg' : rawExtension;
+  const supported = ['avif', 'bmp', 'gif', 'jpg', 'png', 'svg', 'webp'];
+  if (!extension || !supported.includes(extension)) {
+    throw new Error('画像形式を判定できません。JPG、PNG、WebPなどの画像を選び直してください。');
+  }
+  return `reading-note-${safeFileSegment(bookId, 'book')}-${safeFileSegment(dogEarId, 'dogear')}.${extension}`;
+}
+
 /** Android版のBookを、Obsidianへ保存する1冊分のMarkdownへ変換する。 */
-export function buildObsidianNote(book: Book, now = new Date()): ObsidianNote {
+export function buildObsidianNote(
+  book: Book,
+  now = new Date(),
+  options: ObsidianNoteOptions = {},
+): ObsidianNote {
   const created = timestampYmd(book.createdAt) ?? localYmd(now);
   const rating = Math.max(0, Math.min(5, Math.trunc(book.rating ?? 0)));
   const parts: string[] = [
@@ -122,6 +152,13 @@ export function buildObsidianNote(book: Book, now = new Date()): ObsidianNote {
         .join(' / ');
       parts.push(`### ${location}`, '', quoteBlock(dogEar.quote), '');
       if (dogEar.comment?.trim()) parts.push(dogEar.comment.trim(), '');
+      const imageName = options.dogEarImages?.[dogEar.id];
+      if (imageName) {
+        parts.push(
+          `![[${OBSIDIAN_FOLDER}/${OBSIDIAN_ATTACHMENTS_FOLDER}/${imageName}|720]]`,
+          '',
+        );
+      }
     });
   }
   parts.push('');
@@ -173,4 +210,10 @@ export function buildObsidianExport(
     return { uri: full, viaClipboard: false, content };
   }
   return { uri: `${base}&clipboard=true`, viaClipboard: true, content };
+}
+
+/** 直接保存したノートをObsidianで開く公式URI。 */
+export function buildObsidianOpenUri(name: string, vault?: string): string {
+  const uri = `obsidian://open?file=${encodeURIComponent(`${OBSIDIAN_FOLDER}/${name}`)}`;
+  return vault?.trim() ? `${uri}&vault=${encodeURIComponent(vault.trim())}` : uri;
 }

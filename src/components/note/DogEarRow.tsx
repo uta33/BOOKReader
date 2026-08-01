@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { COLORS } from '../../constants/colors';
 import { QUOTE_TEXT } from '../../constants/typography';
 import type { DogEar } from '../../types/book';
@@ -29,6 +29,15 @@ export function DogEarRow({ dogEar, onPress, onLongPress }: Props) {
         {dogEar.comment != null && dogEar.comment.length > 0 && (
           <Text style={styles.comment}>{dogEar.comment}</Text>
         )}
+        {dogEar.photoUri && (
+          <Image
+            source={{ uri: dogEar.photoUri }}
+            style={styles.photo}
+            resizeMode="contain"
+            accessible
+            accessibilityLabel="抜き書きに添付した図または画像"
+          />
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -47,4 +56,11 @@ const styles = StyleSheet.create({
   },
   quote: { ...QUOTE_TEXT, color: COLORS.text },
   comment: { color: COLORS.muted, fontSize: 12, lineHeight: 19, marginTop: 5 },
+  photo: {
+    width: '100%',
+    height: 160,
+    marginTop: 10,
+    borderRadius: 8,
+    backgroundColor: COLORS.cardElevated,
+  },
 });
