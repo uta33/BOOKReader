@@ -88,6 +88,12 @@ npx eas-cli build --platform android --profile preview
 既存APKへ上書きする場合は、EASが提示するAndroid keystoreのSHA-256を既存APKと比較する。
 一致しない鍵でビルドを進めない。`preview` はAPK、`production` はPlay用AAB。
 
+2026-08-01のpreview build `bb4aa4b5-a667-4ed6-8f8e-3837dfc44745` は既存の
+`Build Credentials 1b-OEwqqm3 (default)` を再利用した。成果物は
+`com.uta33.bookreader` 1.0.1（versionCode 2）、証明書SHA-256は
+`24410654cbfb391f638346cceba9374179783be5afffc87287b204a64efa2b3b`。
+実機で旧版をアンインストールせず上書きし、署名継続とローカルデータ保持を最終確認する。
+
 ## 一時D1への復元ドリル
 
 本番D1へ復元SQLを流さない。出力SQLにはハッシュ化済み識別子等が含まれるため、
