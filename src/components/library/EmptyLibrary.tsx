@@ -20,7 +20,7 @@ export function EmptyLibrary({ onScan, onImport }: Props) {
         <Text style={styles.btnText}>紙の本を登録</Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={onImport} style={styles.ghost}>
-        <Text style={styles.ghostText}>ファイルを取り込む</Text>
+        <Text style={styles.ghostText}>PDF・TXT・Markdownを取り込む</Text>
       </TouchableOpacity>
     </View>
   );

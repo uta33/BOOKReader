@@ -64,7 +64,7 @@ export default function ShelfScreen() {
   const addBook = () => {
     Alert.alert('本を追加', undefined, [
       { text: '📖 紙の本を登録（JANコード）', onPress: () => router.push('/book/scan') },
-      { text: '📄 ファイルを取り込む', onPress: pickAndImport },
+      { text: '📄 PDF・TXT・Markdownを取り込む', onPress: pickAndImport },
       { text: 'キャンセル', style: 'cancel' },
     ]);
   };

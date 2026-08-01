@@ -4,6 +4,11 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { buildSentences } from '../services/sentenceSplitter';
 import { extractTextFromFile } from '../services/pdfExtractor';
 import { MAX_PDF_BYTES, PdfImportError } from '../services/pdfTextExtractor';
+import {
+  detectImportFileKind,
+  storedExtensionFor,
+  titleFromImportFilename,
+} from '../services/contentImport';
 import { createContentBook } from '../services/bookFactory';
 import { useLibraryStore } from '../store/libraryStore';
 
@@ -15,14 +20,20 @@ export function usePdfExtraction() {
   const pickAndImport = useCallback(async () => {
     setError(null);
     const result = await DocumentPicker.getDocumentAsync({
-      type: ['application/pdf', 'text/plain'],
+      // Androidのファイル管理アプリごとにMarkdownのMIME型が異なるため、
+      // 選択後に拡張子を厳密に検証する。
+      type: '*/*',
       copyToCacheDirectory: true,
     });
     if (result.canceled || !result.assets?.length) return;
 
     const asset = result.assets[0];
-    const isTxt = asset.name.toLowerCase().endsWith('.txt');
-    if (!isTxt && typeof asset.size === 'number' && asset.size > MAX_PDF_BYTES) {
+    const kind = detectImportFileKind(asset.name);
+    if (!kind) {
+      setError('対応しているファイルはPDF、TXT、Markdown（.md／.markdown）です。');
+      return;
+    }
+    if (kind === 'pdf' && typeof asset.size === 'number' && asset.size > MAX_PDF_BYTES) {
       setError(new PdfImportError('too_large').message);
       return;
     }
@@ -33,12 +44,12 @@ export function usePdfExtraction() {
       const destDir = `${FileSystem.documentDirectory}books/`;
       await FileSystem.makeDirectoryAsync(destDir, { intermediates: true });
       const bookId = `book_${Date.now()}`;
-      destUri = `${destDir}${bookId}${isTxt ? '.txt' : '.pdf'}`;
+      destUri = `${destDir}${bookId}${storedExtensionFor(kind)}`;
       await FileSystem.copyAsync({ from: asset.uri, to: destUri });
 
       const pageTexts = await extractTextFromFile(destUri, asset.name);
       const sentences = buildSentences(pageTexts);
-      const title = asset.name.replace(/\.(pdf|txt)$/i, '');
+      const title = titleFromImportFilename(asset.name);
 
       addBook(
         createContentBook({
