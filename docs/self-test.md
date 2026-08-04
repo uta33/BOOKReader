@@ -19,7 +19,7 @@ APK内の秘密値スキャンと公開Workerの匿名認証・同期・削除�
 
 ## Androidへのインストール
 
-1. 最新候補 `.expo/READING-NOTE-1.8.0-cover-search-preview.apk` をUSBまたは同一LANでAndroidへ送る。
+1. 最新候補 `.expo/READING-NOTE-1.9.0-voice-input-preview.apk` をUSBまたは同一LANでAndroidへ送る。
 2. APKを開き、Androidに求められた場合だけ、そのブラウザ／ファイルアプリの
    「不明なアプリのインストール」を一時的に許可する。
 3. 旧版のローカル記録を残す場合は、旧版をアンインストールせず、そのままAPKを開いて
@@ -27,7 +27,8 @@ APK内の秘密値スキャンと公開Workerの匿名認証・同期・削除�
 4. 起動後、Wi-Fiを切ったモバイル回線でも匿名認証と同期が成功することを確認する。
 
 最新の本人テスト用インストールページは
-<https://expo.dev/accounts/utasan0811/projects/bookreader/builds/cd7f9c53-e098-4021-812b-8785b54b40d7>。
+<https://expo.dev/accounts/utasan0811/projects/bookreader/builds/59e59ea9-71ea-4d1a-85bd-c79d7bd9b14b>。
+ドッグイヤーの音声入力はネイティブ機能を含むため、Expo GoではなくこのAPKで確認する。
 EAS build `bb4aa4b5-a667-4ed6-8f8e-3837dfc44745` の1.0.1は表示不具合確認済みのため、
 新規テストには使わない。APKを公開配布場所へ置かない。
 

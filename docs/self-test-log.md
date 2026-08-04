@@ -236,6 +236,26 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - APK展開検査: Google Books／openBD／Open Library／公開Worker URLを確認し、`AIza`／`GOCSPX`／`sk-ant-`／旧TTS環境変数名 0件
 - 実機未確認: 1.7.1からの上書き、JAN登録時の自動採用、既存本の候補選択、再起動後の端末保存表紙、別端末同期後の再取得
 
+### ドッグイヤー音声入力版 1.9.0（2026-08-04）
+
+- 入力対象: ドッグイヤーの引用文とコメント。各入力欄の「音声入力」から日本語で話し、途中認識を表示して発話終了または停止で確定
+- 既存文字: 上書きせず次の行へ追記。認識後も手修正してから保存可能
+- 失敗時: マイク拒否、無音、通信不良、認識サービス停止を日本語で案内し、手入力は常に利用可能
+- プライバシー: 録音をアプリ、Worker、D1、R2へ保存しない。保存操作後の認識文字列だけを通常のドッグイヤーとして同期
+- 費用: 有料の音声文字起こしAPIは追加せず、Android端末が選択する音声認識サービスを利用。ネットワーク利用の有無は端末・サービス・言語データに依存
+- implementation commit: `4c7496b3f206c6b3a4957a1f76e6d9ef245e5cd5`
+- Worker version: `75b41841-0f4f-4589-8229-aea44951d834`（公開プライバシー表示と`/v1/health`を確認）
+- package / version: `com.uta33.bookreader` / `1.9.0`（`versionCode 16`）
+- EAS build: `59e59ea9-71ea-4d1a-85bd-c79d7bd9b14b`（status `FINISHED`、2026-08-18まで）
+- build page: <https://expo.dev/accounts/utasan0811/projects/bookreader/builds/59e59ea9-71ea-4d1a-85bd-c79d7bd9b14b>
+- APK SHA-256: `B3677763C893DD163CB3722741693D638E12B5BA7E1A833374249CADD4E64107`
+- ローカル成果物: `.expo/READING-NOTE-1.9.0-voice-input-preview.apk`（git管理外、126,842,755 bytes）
+- 署名: APK v2、1.8.0と同じ証明書SHA-256 `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64efa2b3b`
+- 検証: `npm test`、Expo Doctor 20/20、Android Hermes export、Worker dry-run、音声認識ネイティブモジュール単体ビルド、短縮パスでAndroid全体のrelease build（641タスク）、EAS release build
+- APK検査: `RECORD_AUDIO`、`RecognitionService`照会、`expo/modules/speechrecognition`クラスを確認。`AIza`／`GOCSPX`／`sk-ant-`／旧TTS環境変数名は0件
+- ローカル注意: 元の長い作業パスではReanimatedのCMakeがWindowsパス長制限で失敗したが、同じcommitを`C:\brv1901`へ展開した全体buildは成功
+- 実機未確認: 実マイクでの日本語認識、端末固有サービスでの途中／確定表示、1.8.0からの上書き、保存後の再起動・同期
+
 ## 自動preflight（2026-07-28）
 
 - [x] ルート／PWA／Workerの型検査とユニットテスト
@@ -282,6 +302,12 @@ APK証明書SHA-256: `24410654cbfb391f638346cceba9374179783be5afffc87287b204a64e
 - [ ] content本2冊
 - [ ] 合計10冊
 - [ ] ドッグイヤー20件／3冊
+- [ ] 引用文の「音声入力」で途中文字と確定文字が表示される
+- [ ] コメントの「音声入力」で途中文字と確定文字が表示される
+- [ ] 既存文字へ音声入力し、上書きせず次の行へ追記される
+- [ ] マイクを拒否した後に端末設定で許可し、再試行できる
+- [ ] オフライン／認識サービス停止時に案内が表示され、手入力へ戻れる
+- [ ] 音声入力した引用文・コメントが保存、再起動、同期後も残る
 - [ ] ドッグイヤーへ撮影画像／端末内画像を添付し、再起動後も表示
 - [ ] 別端末で同じ画像が自動復元される
 - [ ] Chrome／ギャラリーの共有からテキスト・URL・画像を既存本へ保存
