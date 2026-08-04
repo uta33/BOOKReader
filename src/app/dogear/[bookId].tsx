@@ -25,6 +25,7 @@ import {
 } from '../../services/dogEarImage';
 import { useLibraryStore } from '../../store/libraryStore';
 import { deleteAttachment } from '../../services/attachmentClient';
+import { useSpeechInput, type SpeechInputTarget } from '../../hooks/useSpeechInput';
 
 function selectedImage(result: ImagePicker.ImagePickerResult): PendingDogEarImage | null {
   if (result.canceled || !result.assets[0]) return null;
@@ -55,6 +56,27 @@ export default function DogEarScreen() {
     existing?.photoUri ? { uri: existing.photoUri } : null,
   );
   const [saving, setSaving] = useState(false);
+  const speechInput = useSpeechInput({
+    quote,
+    comment,
+    setQuote,
+    setComment,
+    contextualStrings: [book?.title ?? '', book?.author ?? ''],
+  });
+
+  const speechStatus = (target: SpeechInputTarget) => {
+    if (!speechInput.isActive(target)) return null;
+    if (speechInput.phase === 'preparing') return 'マイクを準備しています…';
+    if (speechInput.phase === 'stopping') return '文字に変換しています…';
+    return '聞き取り中です。読み上げると文字になります。';
+  };
+
+  const speechButtonLabel = (target: SpeechInputTarget) => {
+    if (!speechInput.isActive(target)) return '音声入力';
+    if (speechInput.phase === 'preparing') return '準備中';
+    if (speechInput.phase === 'stopping') return '変換中';
+    return '停止';
+  };
 
   useEffect(() => {
     if (Platform.OS !== 'android') return;
@@ -231,32 +253,148 @@ export default function DogEarScreen() {
           </View>
 
           <View>
-            <Text style={styles.label}>
-              抜き書き<Text style={styles.required}> ✳︎</Text>
-            </Text>
+            <View style={styles.fieldHeader}>
+              <Text style={[styles.label, styles.fieldHeaderLabel]}>
+                抜き書き<Text style={styles.required}> ✳︎</Text>
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.speechButton,
+                  speechInput.isActive('quote') && styles.speechButtonActive,
+                  speechInput.isUnavailableWhileActive('quote') && styles.speechButtonDisabled,
+                ]}
+                onPress={() => void speechInput.toggle('quote')}
+                disabled={
+                  speechInput.isUnavailableWhileActive('quote') ||
+                  (speechInput.isActive('quote') && speechInput.phase !== 'listening')
+                }
+                accessibilityRole="button"
+                accessibilityLabel={
+                  speechInput.isActive('quote') ? '抜き書きの音声入力を停止' : '抜き書きを音声入力'
+                }
+                accessibilityHint="読み上げた内容を入力欄へ文字で追加します"
+                accessibilityState={{
+                  disabled:
+                    speechInput.isUnavailableWhileActive('quote') ||
+                    (speechInput.isActive('quote') && speechInput.phase !== 'listening'),
+                  busy:
+                    speechInput.isActive('quote') &&
+                    (speechInput.phase === 'preparing' || speechInput.phase === 'stopping'),
+                }}
+              >
+                {(speechInput.phase === 'preparing' || speechInput.phase === 'stopping') &&
+                speechInput.isActive('quote') ? (
+                  <ActivityIndicator size="small" color={COLORS.onAccent} />
+                ) : null}
+                <Text
+                  style={[
+                    styles.speechButtonText,
+                    speechInput.isActive('quote') && styles.speechButtonTextActive,
+                  ]}
+                >
+                  {speechButtonLabel('quote')}
+                </Text>
+              </TouchableOpacity>
+            </View>
             <TextInput
               style={[styles.input, styles.genko]}
               value={quote}
-              onChangeText={setQuote}
+              onChangeText={(text) => {
+                setQuote(text);
+                speechInput.clearError('quote');
+              }}
               placeholder="線を引いた箇所を書き写す"
               placeholderTextColor={COLORS.muted}
               multiline
               textAlignVertical="top"
               autoFocus={!existing}
             />
+            {speechStatus('quote') ? (
+              <View style={styles.speechStatus} accessibilityLiveRegion="polite">
+                {speechInput.phase === 'listening' ? (
+                  <View style={styles.listeningDot} />
+                ) : (
+                  <ActivityIndicator size="small" color={COLORS.accent} />
+                )}
+                <Text style={styles.speechStatusText}>{speechStatus('quote')}</Text>
+              </View>
+            ) : null}
+            {speechInput.error?.target === 'quote' ? (
+              <Text style={styles.speechError} accessibilityRole="alert">
+                {speechInput.error.message}
+              </Text>
+            ) : null}
           </View>
 
           <View>
-            <Text style={styles.label}>コメント（なぜ折ったか）</Text>
+            <View style={styles.fieldHeader}>
+              <Text style={[styles.label, styles.fieldHeaderLabel]}>コメント（なぜ折ったか）</Text>
+              <TouchableOpacity
+                style={[
+                  styles.speechButton,
+                  speechInput.isActive('comment') && styles.speechButtonActive,
+                  speechInput.isUnavailableWhileActive('comment') && styles.speechButtonDisabled,
+                ]}
+                onPress={() => void speechInput.toggle('comment')}
+                disabled={
+                  speechInput.isUnavailableWhileActive('comment') ||
+                  (speechInput.isActive('comment') && speechInput.phase !== 'listening')
+                }
+                accessibilityRole="button"
+                accessibilityLabel={
+                  speechInput.isActive('comment') ? 'コメントの音声入力を停止' : 'コメントを音声入力'
+                }
+                accessibilityHint="読み上げた内容を入力欄へ文字で追加します"
+                accessibilityState={{
+                  disabled:
+                    speechInput.isUnavailableWhileActive('comment') ||
+                    (speechInput.isActive('comment') && speechInput.phase !== 'listening'),
+                  busy:
+                    speechInput.isActive('comment') &&
+                    (speechInput.phase === 'preparing' || speechInput.phase === 'stopping'),
+                }}
+              >
+                {(speechInput.phase === 'preparing' || speechInput.phase === 'stopping') &&
+                speechInput.isActive('comment') ? (
+                  <ActivityIndicator size="small" color={COLORS.onAccent} />
+                ) : null}
+                <Text
+                  style={[
+                    styles.speechButtonText,
+                    speechInput.isActive('comment') && styles.speechButtonTextActive,
+                  ]}
+                >
+                  {speechButtonLabel('comment')}
+                </Text>
+              </TouchableOpacity>
+            </View>
             <TextInput
               style={[styles.input, styles.commentInput]}
               value={comment}
-              onChangeText={setComment}
+              onChangeText={(text) => {
+                setComment(text);
+                speechInput.clearError('comment');
+              }}
               placeholder="思ったこと"
               placeholderTextColor={COLORS.muted}
               multiline
               textAlignVertical="top"
             />
+            {speechStatus('comment') ? (
+              <View style={styles.speechStatus} accessibilityLiveRegion="polite">
+                {speechInput.phase === 'listening' ? (
+                  <View style={styles.listeningDot} />
+                ) : (
+                  <ActivityIndicator size="small" color={COLORS.accent} />
+                )}
+                <Text style={styles.speechStatusText}>{speechStatus('comment')}</Text>
+              </View>
+            ) : null}
+            {speechInput.error?.target === 'comment' ? (
+              <Text style={styles.speechError} accessibilityRole="alert">
+                {speechInput.error.message}
+              </Text>
+            ) : null}
           </View>
 
           <View>
@@ -313,9 +451,9 @@ export default function DogEarScreen() {
           </View>
 
           <Text style={styles.helper}>
-            折ったページの角を開いて、
-            <Text style={styles.helperStrong}>線を引いた箇所をそのまま書き写す</Text>。
-            写している間に頭に入る——それがこの仕組みの狙いです。
+            音声入力は既存の文章を消さず、次の行へ追加します。
+            <Text style={styles.helperStrong}>認識された文字を確認してから保存</Text>
+            してください。手入力も引き続き使えます。
           </Text>
         </ScrollView>
 
@@ -350,6 +488,42 @@ const styles = StyleSheet.create({
   plRow: { flexDirection: 'row', gap: 12 },
   label: { color: COLORS.muted, fontSize: 11.5, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
   required: { color: COLORS.shu },
+
+  fieldHeader: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 6,
+  },
+  fieldHeaderLabel: { flex: 1, marginBottom: 0 },
+  speechButton: {
+    minHeight: 44,
+    minWidth: 92,
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  speechButtonActive: { backgroundColor: COLORS.accent },
+  speechButtonDisabled: { opacity: 0.4 },
+  speechButtonText: { color: COLORS.accent, fontSize: 12.5, fontWeight: '700' },
+  speechButtonTextActive: { color: COLORS.onAccent },
+  speechStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    paddingHorizontal: 2,
+  },
+  speechStatusText: { flex: 1, color: COLORS.accent, fontSize: 12, lineHeight: 18 },
+  listeningDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: COLORS.shu },
+  speechError: { color: COLORS.danger, fontSize: 12, lineHeight: 18, marginTop: 8 },
 
   input: {
     backgroundColor: COLORS.cardElevated,

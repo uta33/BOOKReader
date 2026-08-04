@@ -2,7 +2,8 @@
 
 紙の本とPDF/TXTを同じ本棚で扱い、openBD・Google Books・Open Libraryを使った
 ISBN表紙検索と端末保存、マガジンノート、
-ドッグイヤー抜き書き、図・グラフ・写真の添付、100冊の進捗、AI要約、読み上げを
+ドッグイヤー抜き書き、端末の日本語音声認識による文字入力、図・グラフ・写真の添付、
+100冊の進捗、AI要約、読み上げを
 まとめたExpo製Androidアプリです。
 
 表示名は `READING NOTE`。上書き更新と既存データの互換性を守るため、技術IDの
@@ -42,6 +43,10 @@ npm --prefix worker run dev
 ```bash
 npx expo start
 ```
+
+通常の画面と手入力はExpo Goでも確認できますが、ドッグイヤーの音声入力は
+ネイティブ音声認識を使うため、`preview` APKまたはdevelopment buildで確認します。
+音声入力のための有料AI APIは追加していません。
 
 preview／productionビルドでは設定画面からAPI URLを変更できません。公開候補URLは
 `eas.json` の `EXPO_PUBLIC_API_BASE_URL` に固定しています。

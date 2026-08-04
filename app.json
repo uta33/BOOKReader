@@ -2,7 +2,7 @@
   "expo": {
     "name": "READING NOTE",
     "slug": "bookreader",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "icon": "./web/public/icon-reading-note-1024.png",
     "orientation": "portrait",
     "scheme": "bookreader",
@@ -21,7 +21,7 @@
     },
     "android": {
       "package": "com.uta33.bookreader",
-      "versionCode": 15,
+      "versionCode": 16,
       "adaptiveIcon": {
         "foregroundImage": "./web/public/icon-reading-note-foreground.png",
         "monochromeImage": "./web/public/icon-reading-note-monochrome.png",
@@ -31,7 +31,8 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.WAKE_LOCK",
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [
@@ -47,18 +48,30 @@
         {
           "photosPermission": "読書ノートへ図・グラフ・写真を添付するために画像を選びます。",
           "cameraPermission": "本の図・グラフ・写真を読書ノートへ添付するためにカメラを使います。",
-          "microphonePermission": false
+          "microphonePermission": "抜き書きやコメントを音声で入力するためにマイクを使います。"
         }
       ],
       [
         "expo-camera",
         {
           "cameraPermission": "本のバーコード（JANコード）を読み取るためにカメラを使います。",
-          "microphonePermission": false,
+          "microphonePermission": "抜き書きやコメントを音声で入力するためにマイクを使います。",
           "recordAudioAndroid": false
         }
       ],
       "expo-audio",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "抜き書きやコメントを音声で入力するためにマイクを使います。",
+          "speechRecognitionPermission": "読み上げた内容を抜き書きやコメントへ文字入力するために音声認識を使います。",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.tts",
+            "com.google.android.as"
+          ]
+        }
+      ],
       "expo-secure-store",
       "expo-web-browser",
       "expo-asset",

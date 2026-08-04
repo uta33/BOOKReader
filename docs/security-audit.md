@@ -28,3 +28,11 @@ Expo側の`uuid`もAndroidアプリ実行時ではなく設定・Xcode生成側�
 - React Router／Workbox／Expoの修正版が出たら通常の互換範囲で更新
 - advisoryの影響範囲またはアプリの利用方式が変わった場合は判断を見直す
 - 未評価のruntime到達可能なhigh/criticalが残る場合は公開しない
+
+## 2026-08-04再監査
+
+- Expo SDK 57の推奨patch版へ更新後、`npm audit --omit=dev --audit-level=high` は成功
+- Expo CLIのビルド時依存に入った`brace-expansion`のhigh advisoryは、互換範囲内の
+  `5.0.9`へ更新して解消
+- 残る11件はExpo／Xcode設定ツール経由のmoderateで、Androidアプリの実行経路ではない
+- `npm audit fix --force`はExpo 46への破壊的ダウングレードを提示するため実行しない
