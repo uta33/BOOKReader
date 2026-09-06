@@ -128,6 +128,7 @@ export function normalizeBook(raw: unknown): Book | null {
     coverUrl: str(r.coverUrl),
     coverLocalUri: str(r.coverLocalUri),
 
+    blurb: str(r.blurb),
     bookstore: str(r.bookstore),
     summary: str(r.summary),
     recap: str(r.recap),

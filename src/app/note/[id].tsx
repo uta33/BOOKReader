@@ -28,7 +28,12 @@ import { DogEarRow } from '../../components/note/DogEarRow';
 import { LinkRow } from '../../components/note/LinkRow';
 import { AddLinkModal } from '../../components/note/AddLinkModal';
 import { finishedSeq, notePosition } from '../../services/readingProgress';
-import { generateSummary, isSummaryApiConfigured } from '../../services/summaryApi';
+import {
+  fetchRecapQuestions,
+  generateNoteSummary,
+  isSummaryApiConfigured,
+  type SummaryGrounding,
+} from '../../services/summaryApi';
 import { buildObsidianExport, buildObsidianOpenUri } from '../../services/obsidianExport';
 import {
   exportBookToObsidianDirectory,
@@ -61,6 +66,10 @@ export default function NoteScreen() {
   const [recap, setRecap] = useState(book?.recap ?? '');
   const [linkModal, setLinkModal] = useState(false);
   const [generating, setGenerating] = useState(false);
+  /** 直近の生成がどの材料から書かれたか。保存はせず、この画面でだけ出す。 */
+  const [origin, setOrigin] = useState<{ grounded: SummaryGrounding; count: number } | null>(null);
+  const [questions, setQuestions] = useState<string[]>([]);
+  const [asking, setAsking] = useState(false);
   const [obsidianError, setObsidianError] = useState<string | null>(null);
   const coverCachingRef = useRef<string | null>(null);
 
@@ -104,14 +113,52 @@ export default function NoteScreen() {
   const generateWithAi = async () => {
     setGenerating(true);
     try {
-      const { body } = await generateSummary(book.title, book.author);
-      setSummary(body);
-      updateBook(book.id, { summary: body });
+      const result = await generateNoteSummary(book);
+      // 材料が無いときは書かない。書名から創作させるより、
+      // 書けないと伝えて抜き書きを促すほうが READING NOTE として正しい。
+      if (result.grounded === 'none' || !result.body.trim()) {
+        setOrigin(null);
+        Alert.alert(
+          'まとめの材料がありません',
+          'ドッグイヤー抜き書きを追加するか、まとめを自分で書いてください。',
+        );
+        return;
+      }
+      setSummary(result.body);
+      setOrigin({ grounded: result.grounded, count: result.excerptCount });
+      updateBook(book.id, { summary: result.body });
     } catch (e: unknown) {
       Alert.alert('生成できませんでした', e instanceof Error ? e.message : String(e));
     } finally {
       setGenerating(false);
     }
+  };
+
+  const askForQuestions = async () => {
+    setAsking(true);
+    try {
+      const next = await fetchRecapQuestions(book);
+      if (next.length === 0) {
+        Alert.alert(
+          '問いを作れませんでした',
+          'ふりかえりの問いは抜き書きから作ります。先に抜き書きを追加してください。',
+        );
+      }
+      setQuestions(next);
+    } catch (e: unknown) {
+      Alert.alert('問いをもらえませんでした', e instanceof Error ? e.message : String(e));
+    } finally {
+      setAsking(false);
+    }
+  };
+
+  /** 問いを見出し行として挿入する。答えを書くのは本人。 */
+  const insertQuestion = (question: string) => {
+    setRecap((prev) => {
+      const next = `${prev.trimEnd()}${prev.trim() ? '\n\n' : ''}${question}\n`;
+      return next;
+    });
+    setQuestions((prev) => prev.filter((q) => q !== question));
   };
 
   const confirmDeleteDogEar = (dogEarId: string) =>
@@ -358,6 +405,13 @@ export default function NoteScreen() {
                 <Text style={styles.empty}>AIが要約を作成しています…（30秒ほど）</Text>
               </View>
             )}
+            {origin && !generating && (
+              <Text style={styles.empty}>
+                {origin.grounded === 'dogears'
+                  ? `AIが抜き書き${origin.count}件から書きました`
+                  : 'AIが出版社の内容紹介から書きました（読んだ内容ではありません）'}
+              </Text>
+            )}
             {!aiAvailable && (
               <Text style={styles.empty}>
                 AI要約を使うには、設定でサーバーURLを指定してください。
@@ -365,7 +419,11 @@ export default function NoteScreen() {
             )}
           </NoteSection>
 
-          <NoteSection title="ふりかえり（自分の言葉）">
+          <NoteSection
+            title="ふりかえり（自分の言葉）"
+            actionLabel={aiAvailable ? (asking ? '考え中…' : '✨ 問いをもらう') : undefined}
+            onAction={aiAvailable && !asking ? askForQuestions : undefined}
+          >
             <TextInput
               style={[styles.input, styles.inputProse]}
               value={recap}
@@ -376,6 +434,28 @@ export default function NoteScreen() {
               multiline
               textAlignVertical="top"
             />
+            {asking && (
+              <View style={styles.busyRow}>
+                <ActivityIndicator size="small" color={COLORS.accent} />
+                <Text style={styles.empty}>抜き書きから問いを作っています…</Text>
+              </View>
+            )}
+            {questions.length > 0 && (
+              <View style={styles.questionList}>
+                <Text style={styles.empty}>
+                  答えを書くのはあなたです。タップすると下書きに入ります。
+                </Text>
+                {questions.map((question) => (
+                  <TouchableOpacity
+                    key={question}
+                    style={styles.questionRow}
+                    onPress={() => insertQuestion(question)}
+                  >
+                    <Text style={styles.questionText}>{question}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </NoteSection>
 
           <NoteSection title="デジタルリンク" actionLabel="＋ 追加" onAction={() => setLinkModal(true)}>
@@ -475,6 +555,16 @@ const styles = StyleSheet.create({
 
   empty: { color: COLORS.muted, fontSize: 12.5, lineHeight: 20 },
   busyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  questionList: { marginTop: 10, gap: 8 },
+  questionRow: {
+    backgroundColor: COLORS.cardElevated,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  questionText: { color: COLORS.text, fontSize: 14, lineHeight: 21 },
 
   input: {
     backgroundColor: COLORS.card,

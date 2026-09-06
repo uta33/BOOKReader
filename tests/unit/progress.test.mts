@@ -5,6 +5,10 @@ const {
   finishedSeq,
   finishedThisMonth,
   purposeProgress,
+  volumeBooks,
+  currentVolume,
+  monthlyPace,
+  purposeBalance,
 } = await import('../../src/services/readingProgress.js');
 
 let failures = 0;
@@ -69,6 +73,56 @@ ok(
   finishedThisMonth(monthly, new Date(2025, 3, 25)) === 0,
   '同じ月でも年が違えば数えない',
 );
+
+// ── 棚卸し: ノート1冊（48冊）ぶんの本 ──
+// 読了時刻を1msずつずらして通し番号を作る。
+const many = Array.from({ length: 100 }, (_, i) => book(`b${i}`, i + 1));
+
+ok(volumeBooks(many, 1).length === 48, '1冊目のノートは48冊');
+ok(volumeBooks(many, 1)[0].id === 'b0', '1冊目は先頭から');
+ok(volumeBooks(many, 1)[47].id === 'b47', '1冊目は48冊目で終わる');
+ok(volumeBooks(many, 2)[0].id === 'b48', '2冊目は49冊目から始まる（境界）');
+ok(volumeBooks(many, 3).length === 4, '3冊目は端数の4冊', volumeBooks(many, 3).length);
+ok(volumeBooks(many, 9).length === 0, '存在しない冊は空');
+ok(volumeBooks(many, 0)[0].id === 'b0', '0以下は1冊目に丸める');
+ok(volumeBooks([], 1).length === 0, '蔵書が空でも落ちない');
+// 未読了は棚卸しに出さない。
+ok(volumeBooks([book('x'), book('y', 5)], 1).map((b) => b.id).join() === 'y', '未読了は含めない');
+
+ok(currentVolume([]) === 1, '0冊でも1冊目');
+ok(currentVolume(many.slice(0, 47)) === 1, '47冊なら1冊目');
+ok(currentVolume(many.slice(0, 48)) === 2, '48冊で2冊目へ繰り上がる');
+
+// ── 棚卸し: 月ごとのペース ──
+const paced = [
+  book('p1', new Date(2026, 1, 10).getTime()),
+  book('p2', new Date(2026, 3, 2).getTime()),
+  book('p3', new Date(2026, 3, 20).getTime()),
+];
+const pace = monthlyPace(paced, new Date(2026, 3, 25), 3);
+ok(eq(pace.map((m) => m.month), ['2026-02', '2026-03', '2026-04']), '古い順に並ぶ', pace);
+ok(pace[2].count === 2, '当月は2冊', pace[2].count);
+// 読了が無い月も 0 で埋める。歯抜けだとペースが読めない。
+ok(pace[1].count === 0, '読了の無い月も0で埋まる');
+ok(pace[0].count === 1, '2月は1冊');
+ok(monthlyPace([], new Date(2026, 3, 25), 6).length === 6, '蔵書が空でも6ヶ月ぶん返す');
+ok(monthlyPace(paced, new Date(2026, 3, 25), 0).length === 1, '0ヶ月指定は1ヶ月に丸める');
+// 年をまたいでも月キーが壊れないこと。
+ok(
+  monthlyPace([], new Date(2026, 0, 15), 3)[0].month === '2025-11',
+  '年またぎでも月キーが正しい',
+  monthlyPace([], new Date(2026, 0, 15), 3)[0].month,
+);
+
+// ── 棚卸し: 目的の偏り ──
+const balance = purposeBalance(shelf);
+ok(balance.length === 10, '10の目的すべてを返す');
+ok(balance[0].count === 0, '冊数の少ない順（手薄な目的が先頭）', balance[0]);
+ok(balance[balance.length - 1].count === 2, '多い目的が末尾', balance[balance.length - 1]);
+const thinking = balance.find((b) => b.id === 'thinking');
+ok(thinking?.count === 2 && thinking?.short === 8, '各目的10冊に対する不足数', thinking);
+const full = purposeBalance(Array.from({ length: 12 }, (_, i) => book(`f${i}`, i + 1, ['volume'])));
+ok(full.find((b) => b.id === 'volume')?.short === 0, '10冊を超えたら不足は0');
 
 console.log(failures === 0 ? '\n全て通過' : `\n${failures}件 失敗`);
 process.exit(failures === 0 ? 0 : 1);

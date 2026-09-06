@@ -85,6 +85,11 @@ export interface Book {
   coverUrl?: string;
   /** 端末へ取り込んだ書影URI。同期ペイロードには含めない。 */
   coverLocalUri?: string;
+  /**
+   * 出版社の内容紹介（openBD の ONIX / NDL の dc:description）。
+   * 読んだ本人の言葉ではない。まとめ生成では本の位置づけを添えるためだけに使う。
+   */
+  blurb?: string;
 
   /** 出会った書店（目的「書店と出会う」の実績）。 */
   bookstore?: string;

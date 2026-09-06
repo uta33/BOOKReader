@@ -42,6 +42,8 @@ export default function NewBookScreen() {
   const [purposes, setPurposes] = useState<PurposeId[]>([]);
   const [coverUrl, setCoverUrl] = useState<string | undefined>();
   const [pubdate, setPubdate] = useState<string | undefined>();
+  // 出版社の内容紹介。画面には出さず、まとめ生成の材料として持っておく。
+  const [blurb, setBlurb] = useState<string | undefined>();
 
   const [looking, setLooking] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -97,6 +99,7 @@ export default function NewBookScreen() {
       setAuthor((v) => v || hit.author || '');
       setPublisher((v) => v || hit.publisher || '');
       setPubdate(hit.pubdate);
+      setBlurb(hit.blurb);
       const sourceLabel = hit.source === 'openbd'
         ? 'openBD から取得しました'
         : '国立国会図書館サーチから取得しました';
@@ -136,6 +139,7 @@ export default function NewBookScreen() {
       isbn: scannedIsbn ?? undefined,
       coverUrl,
       pubdate,
+      blurb,
       purposes,
     });
     if (coverUrl) {

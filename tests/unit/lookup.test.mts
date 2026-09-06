@@ -9,6 +9,8 @@ const {
   openLibrarySearchUrl,
   lookupOpenLibraryCover,
   shapeOpenLibraryCovers,
+  shapeOpenBdBlurb,
+  MAX_BLURB_CHARS,
 } = await import('../../src/services/bookLookup.js');
 
 let failures = 0;
@@ -197,6 +199,73 @@ ok(
   'Open Library Search: ISBNが無い本は書名と著者で探す',
 );
 ok(shapeOpenLibraryCovers(null).length === 0, 'Open Library Search: 壊れた応答は空候補');
+
+// ── 内容紹介（まとめ生成の材料）──
+// ONIX の CollateralDetail は書影と同じ場所にある。通信を増やさずに拾える。
+const onixWith = (textContent: unknown) => [
+  { summary: { isbn: '9784480020475', title: '思考の整理学' }, onix: { CollateralDetail: { TextContent: textContent } } },
+];
+
+ok(
+  shapeOpenBdBlurb(onixWith([
+    { TextType: '04', Text: '第一章 …' },
+    { TextType: '02', Text: '短い説明' },
+    { TextType: '03', Text: '内容説明の本文' },
+  ])) === '内容説明の本文',
+  '内容紹介: TextType 03 を最優先する',
+);
+ok(
+  shapeOpenBdBlurb(onixWith([{ TextType: '02', Text: '短い説明' }])) === '短い説明',
+  '内容紹介: 03 が無ければ 02 を使う',
+);
+ok(
+  shapeOpenBdBlurb(onixWith([{ TextType: '04', Text: '第一章 …' }])) === undefined,
+  '内容紹介: 目次（04）は採らない',
+);
+ok(
+  shapeOpenBdBlurb(onixWith([{ TextType: '03', Text: '<p>一文目。<br>二文目。</p>' }])) ===
+    '一文目。\n二文目。',
+  '内容紹介: HTMLタグを落として改行にする',
+);
+ok(
+  shapeOpenBdBlurb(onixWith([{ TextType: '03', Text: '&lt;強調&gt; &amp; 記号' }])) ===
+    '<強調> & 記号',
+  '内容紹介: 実体参照を戻す',
+);
+ok(
+  shapeOpenBdBlurb(onixWith([{ TextType: '03', Text: 'あ'.repeat(MAX_BLURB_CHARS + 500) }]))
+    ?.length === MAX_BLURB_CHARS,
+  '内容紹介: 上限で切る',
+);
+// TextContent は単体オブジェクトで来ることもある。
+ok(
+  shapeOpenBdBlurb(onixWith({ TextType: '03', Text: '単体' })) === '単体',
+  '内容紹介: 配列でなくても読む',
+);
+ok(shapeOpenBdBlurb(onixWith([])) === undefined, '内容紹介: 空なら undefined');
+ok(shapeOpenBdBlurb([{ summary: { title: 'x' } }]) === undefined, '内容紹介: ONIXが無ければ undefined');
+ok(shapeOpenBdBlurb(null) === undefined, '内容紹介: 壊れた応答でも落ちない');
+ok(
+  shapeOpenBdBlurb(onixWith([{ TextType: '03', Text: '   ' }])) === undefined,
+  '内容紹介: 空白だけなら採らない',
+);
+
+// shapeOpenBd 経由でも入ること。
+ok(
+  shapeOpenBd(onixWith([{ TextType: '03', Text: '内容説明' }]))?.blurb === '内容説明',
+  '内容紹介: shapeOpenBd の結果に入る',
+);
+
+// NDL の dc:description
+ok(
+  shapeNdl('<item><dc:title>夜と霧</dc:title><dc:description>強制収容所の記録。</dc:description></item>')
+    ?.blurb === '強制収容所の記録。',
+  '内容紹介: NDL の dc:description を拾う',
+);
+ok(
+  shapeNdl('<item><dc:title>夜と霧</dc:title></item>')?.blurb === undefined,
+  '内容紹介: NDL に説明が無ければ undefined',
+);
 
 console.log(failures === 0 ? '\n全て通過' : `\n${failures}件 失敗`);
 process.exit(failures === 0 ? 0 : 1);

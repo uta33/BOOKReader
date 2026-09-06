@@ -14,6 +14,7 @@ interface PaperInput {
   coverUrl?: string;
   coverLocalUri?: string;
   bookstore?: string;
+  blurb?: string;
   totalPages?: number;
   purposes?: PurposeId[];
 }
@@ -41,6 +42,7 @@ export function createPaperBook(input: PaperInput): Book {
     coverUrl: input.coverUrl,
     coverLocalUri: input.coverLocalUri,
     bookstore: input.bookstore,
+    blurb: input.blurb,
   };
 }
 

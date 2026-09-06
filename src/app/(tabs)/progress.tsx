@@ -43,6 +43,9 @@ export default function ProgressScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>進捗</Text>
+        <TouchableOpacity onPress={() => router.push('/milestone')} hitSlop={8}>
+          <Text style={styles.headerAction}>棚卸し ›</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.body}>
@@ -113,12 +116,16 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
   headerTitle: { color: COLORS.text, fontSize: 22, fontWeight: '800' },
+  headerAction: { color: COLORS.accent, fontSize: 13.5, fontWeight: '700' },
 
   body: { padding: 16, gap: 14, paddingBottom: 32 },
   block: {

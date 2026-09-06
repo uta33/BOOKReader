@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const port = process.env.BOOKREADER_SMOKE_PORT ?? '8798';
@@ -12,6 +13,22 @@ const anonymousHeaders = {
   ...(externalBaseUrl ? {} : { 'CF-Connecting-IP': localTestIp }),
 };
 const workerDirectory = fileURLToPath(new URL('..', import.meta.url));
+
+/**
+ * Anthropic の鍵が入っているか。AI系の期待ステータスがこれで変わる
+ * （鍵が無ければ 503。「材料が無い」の 200 とは別物として確かめたい）。
+ * 外部URLに向けているときは分からないので、設定済みとみなす。
+ */
+const anthropicConfigured = externalBaseUrl
+  ? true
+  : (() => {
+      try {
+        const vars = readFileSync(new URL('../.dev.vars', import.meta.url), 'utf8');
+        return /^ANTHROPIC_API_KEY=.+$/m.test(vars);
+      } catch {
+        return false;
+      }
+    })();
 const wranglerCli = fileURLToPath(
   new URL('../node_modules/wrangler/bin/wrangler.js', import.meta.url),
 );
@@ -270,6 +287,82 @@ try {
         : null;
   if (!ttsMode) throw new Error('TTS response contract changed');
 
+  // ── マガジンノートの「まとめ」──
+  // いちばん確かめたいのは「材料が無ければモデルを呼ばず、課金もしない」こと。
+  const quotaBefore = (await request('/v1/account', { headers: authorization })).body.quota
+    .summary_count;
+  const noMaterial = await request('/v1/note-summary', {
+    method: 'POST',
+    headers: { ...authorization, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: '材料の無い本', excerpts: [] }),
+  });
+  if (noMaterial.body.grounded !== 'none' || noMaterial.body.body !== '') {
+    throw new Error('Note summary must refuse to write without material');
+  }
+  const quotaAfter = (await request('/v1/account', { headers: authorization })).body.quota
+    .summary_count;
+  if (quotaAfter !== quotaBefore) {
+    throw new Error('Refusing to write must not consume summary quota');
+  }
+
+  // 抜き書きがあるときは、鍵が無ければ 503。'none'（材料不足）と混ぜない。
+  const withExcerpts = {
+    title: '思考の整理学',
+    author: '外山滋比古',
+    excerpts: [{ page: 42, line: 3, quote: '寝させる時間が要る。', comment: '寝かせる話' }],
+  };
+  const noteMode = anthropicConfigured ? 'provider' : 'unconfigured';
+  await request(
+    '/v1/note-summary',
+    {
+      method: 'POST',
+      headers: { ...authorization, 'Content-Type': 'application/json' },
+      body: JSON.stringify(withExcerpts),
+    },
+    anthropicConfigured ? 200 : 503,
+  );
+  await request(
+    '/v1/recap-questions',
+    {
+      method: 'POST',
+      headers: { ...authorization, 'Content-Type': 'application/json' },
+      body: JSON.stringify(withExcerpts),
+    },
+    anthropicConfigured ? 200 : 503,
+  );
+  // 抜き書き0件の問いは、鍵の有無によらず空で返る（モデルを呼ばない）。
+  const noQuestions = await request('/v1/recap-questions', {
+    method: 'POST',
+    headers: { ...authorization, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: '抜き書きの無い本', excerpts: [] }),
+  });
+  if (noQuestions.body.questions.length !== 0) {
+    throw new Error('Recap questions must be empty without excerpts');
+  }
+  // 上限を超える抜き書きは弾く。
+  await request(
+    '/v1/note-summary',
+    {
+      method: 'POST',
+      headers: { ...authorization, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'x',
+        excerpts: Array.from({ length: 51 }, () => ({ page: 1, quote: 'あ' })),
+      }),
+    },
+    400,
+  );
+  // 認証が要ること（新しいルートを middleware に足し忘れていないか）。
+  await request(
+    '/v1/note-summary',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(withExcerpts),
+    },
+    401,
+  );
+
   const oversized = await request(
     '/api/generate-summary',
     {
@@ -410,6 +503,9 @@ try {
         diagnosticsAttachments: true,
         ttsMode,
         summaryQuota: '20 accepted, 21st rejected',
+        noteSummary: noteMode,
+        noteSummaryRefusesWithoutMaterial: true,
+        noteSummaryRequiresAuth: true,
         deletionTicket: true,
         accountDeleteRevokedOldToken: true,
         anonymousSignOutRejected: true,

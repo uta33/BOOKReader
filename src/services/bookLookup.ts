@@ -18,6 +18,11 @@ export interface LookupResult {
   pubdate?: string;
   coverUrl?: string;
   coverUrls?: string[];
+  /**
+   * 出版社の内容紹介。まとめ生成で本の位置づけを添えるために使う。
+   * 読んだ本人の言葉ではないので、AIには「紹介文に基づく」と断らせる。
+   */
+  blurb?: string;
   /** どこから引けたか。UI の出典表示に使う。 */
   source: 'openbd' | 'ndl';
 }
@@ -63,6 +68,61 @@ function clean(v: unknown): string | undefined {
 function asArray(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
   return value === undefined || value === null ? [] : [value];
+}
+
+/** 内容紹介の保存上限。プロンプトへ載せる量もこれで頭打ちになる。 */
+export const MAX_BLURB_CHARS = 2000;
+
+/** ONIXの内容紹介はHTMLを含む。読み上げにも要約にも使えるよう素のテキストへ均す。 */
+function stripHtml(raw: string): string {
+  return raw
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
+ * openBD の ONIX から内容紹介を取り出す。
+ *
+ * TextType は 03（内容説明）を優先し、無ければ 02（短い説明）。
+ * 04 は目次なので採らない。**このデータは書影と同じレスポンスに既に入っている**ので、
+ * 通信は1回も増えない。
+ */
+export function shapeOpenBdBlurb(payload: unknown): string | undefined {
+  for (const rawEntry of asArray(payload)) {
+    if (!rawEntry || typeof rawEntry !== 'object') continue;
+    const onix = (rawEntry as Record<string, unknown>).onix;
+    if (!onix || typeof onix !== 'object') continue;
+    const collateral = (onix as Record<string, unknown>).CollateralDetail;
+    if (!collateral || typeof collateral !== 'object') continue;
+
+    const byType = new Map<string, string>();
+    for (const rawText of asArray((collateral as Record<string, unknown>).TextContent)) {
+      if (!rawText || typeof rawText !== 'object') continue;
+      const entry = rawText as Record<string, unknown>;
+      const type = clean(entry.TextType);
+      const text = clean(entry.Text);
+      if (!type || !text) continue;
+      if (!byType.has(type)) byType.set(type, text);
+    }
+
+    for (const type of ['03', '02']) {
+      const raw = byType.get(type);
+      if (!raw) continue;
+      const text = stripHtml(raw);
+      if (text.length > 0) return text.slice(0, MAX_BLURB_CHARS);
+    }
+  }
+  return undefined;
 }
 
 function trustedOpenBdCover(value: unknown): string | undefined {
@@ -151,6 +211,7 @@ export function shapeOpenBd(payload: unknown): LookupResult | null {
     pubdate: clean(s.pubdate),
     coverUrl: coverUrls[0],
     coverUrls: coverUrls.length > 0 ? coverUrls : undefined,
+    blurb: shapeOpenBdBlurb(payload),
     source: 'openbd',
   };
 }
@@ -192,6 +253,7 @@ export function shapeNdl(xml: string): LookupResult | null {
     author: pick('dc:creator'),
     publisher: pick('dc:publisher'),
     pubdate: pick('dcterms:issued') ?? pick('dc:date'),
+    blurb: pick('dc:description')?.slice(0, MAX_BLURB_CHARS),
     source: 'ndl',
   };
 }

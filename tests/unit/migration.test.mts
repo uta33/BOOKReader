@@ -136,5 +136,17 @@ ok(weird?.lastSentenceIdx === 0, 'NaN の lastSentenceIdx は 0');
 ok(weird?.createdAt === 0, '数値でない createdAt は 0');
 ok(weird?.dogEars[0].page === 0, '負のページは 0 にクランプ', weird?.dogEars[0].page);
 
+// ── 内容紹介（あとから足したフィールド） ──
+// 旧レコードには blurb が無い。undefined のまま通ればよく、既定値を作らない。
+ok(normalizeBook({ id: 'nb', title: '旧レコード' })?.blurb === undefined, '旧レコードの blurb は undefined');
+ok(
+  normalizeBook({ id: 'nb', title: 'x', blurb: '内容紹介' })?.blurb === '内容紹介',
+  'blurb は保存される',
+);
+ok(
+  normalizeBook({ id: 'nb', title: 'x', blurb: 42 })?.blurb === undefined,
+  '文字列でない blurb は捨てる',
+);
+
 console.log(failures === 0 ? '\n全て通過' : `\n${failures}件 失敗`);
 process.exit(failures === 0 ? 0 : 1);

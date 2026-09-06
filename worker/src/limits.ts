@@ -10,6 +10,11 @@ export const LIMITS = {
   ocrBase64Bytes: 1_500_000,
   syncPush: 100,
   syncPull: 500,
+  noteExcerpts: 50,
+  noteExcerptChars: 6_000,
+  noteQuote: 2_000,
+  blurb: 2_000,
+  purposes: 10,
 } as const;
 
 export function requireText(value: unknown, field: string, max: number): string {
@@ -77,4 +82,65 @@ export function validateOcrImages(value: unknown): string[] {
     }
     return image;
   });
+}
+
+export interface NoteExcerptInput {
+  page: number;
+  line?: number;
+  quote: string;
+  comment?: string;
+}
+
+/**
+ * ドッグイヤー抜き書きの検証。
+ *
+ * 引用が空の項目は落とす（写真だけ撮って本文を書いていない抜き書きがありうる）。
+ * 合計文字数を縛るのは、100件を超える抜き書きが付いた本でプロンプトが
+ * 際限なく伸びるのを防ぐため。
+ */
+export function validateNoteExcerpts(value: unknown): NoteExcerptInput[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) throw new ApiError(400, 'excerpts must be an array');
+  if (value.length > LIMITS.noteExcerpts) {
+    throw new ApiError(400, `excerpts must contain <= ${LIMITS.noteExcerpts} items`);
+  }
+
+  const excerpts: NoteExcerptInput[] = [];
+  let totalChars = 0;
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object') throw new ApiError(400, 'each excerpt must be an object');
+    const item = raw as Record<string, unknown>;
+    const quote = typeof item.quote === 'string' ? item.quote.trim() : '';
+    if (!quote) continue;
+    if (quote.length > LIMITS.noteQuote) {
+      throw new ApiError(400, `excerpt.quote must be <= ${LIMITS.noteQuote} characters`);
+    }
+    const comment = optionalText(item.comment, 'excerpt.comment', LIMITS.noteQuote);
+    totalChars += quote.length + (comment?.length ?? 0);
+    if (totalChars > LIMITS.noteExcerptChars) {
+      throw new ApiError(400, `excerpts must total <= ${LIMITS.noteExcerptChars} characters`);
+    }
+    excerpts.push({
+      page: positiveInt(item.page),
+      line: positiveInt(item.line) || undefined,
+      quote,
+      comment,
+    });
+  }
+  return excerpts;
+}
+
+export function validatePurposes(value: unknown): string[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) throw new ApiError(400, 'purposes must be an array');
+  return value
+    .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    .slice(0, LIMITS.purposes)
+    .map((item) => item.trim());
+}
+
+/** 負数・小数・非数はすべて 0（＝未記入）に倒す。 */
+function positiveInt(value: unknown): number {
+  const n = typeof value === 'number' ? Math.trunc(value) : Number.NaN;
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }

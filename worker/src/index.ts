@@ -5,12 +5,15 @@ import {
   LIMITS,
   optionalText,
   requireText,
+  validateNoteExcerpts,
   validateOcrImages,
+  validatePurposes,
   validateTtsParts,
 } from './limits';
 import { estimateCharge, reserveBookCoverSearch, reserveUsage } from './quota';
 import type { Env, WorkerVariables } from './types';
 import { generateSummaryStream } from './ai/summary';
+import { generateNoteSummary, generateRecapQuestions, type NoteInput } from './ai/note';
 import { generateQuiz } from './ai/quiz';
 import { synthesize, synthesizeChunk } from './ai/tts';
 import { ocrImages } from './ai/ocr';
@@ -109,6 +112,8 @@ app.use('/v1/auth/signout', requireAuth);
 app.use('/v1/account', requireAuth);
 app.use('/v1/account/*', requireAuth);
 app.use('/v1/sync', requireAuth);
+app.use('/v1/note-summary', requireAuth);
+app.use('/v1/recap-questions', requireAuth);
 app.use('/v1/diagnostics', requireAuth);
 app.use('/v1/attachments/*', requireAuth);
 app.use('/v1/books/*', requireAuth);
@@ -244,6 +249,71 @@ app.post('/account/delete', async (c) => {
   } catch (error) {
     const message = error instanceof ApiError ? error.message : '削除に失敗しました。';
     return deletionPage(message);
+  }
+});
+
+/**
+ * マガジンノート用のリクエストを組み立てる。
+ * `/api/generate-summary`（朗読台本）と違い、利用者自身の抜き書きを主材料にする。
+ */
+async function readNoteInput(request: Request): Promise<NoteInput> {
+  const body = await readJson<Record<string, unknown>>(request, 200_000);
+  return {
+    title: requireText(body.title, 'title', LIMITS.topic),
+    author: optionalText(body.author, 'author', LIMITS.topic),
+    publisher: optionalText(body.publisher, 'publisher', LIMITS.topic),
+    pubdate: optionalText(body.pubdate, 'pubdate', 64),
+    isbn: optionalText(body.isbn, 'isbn', 32),
+    blurb: optionalText(body.blurb, 'blurb', LIMITS.blurb),
+    excerpts: validateNoteExcerpts(body.excerpts),
+    purposes: validatePurposes(body.purposes),
+  };
+}
+
+app.post('/v1/note-summary', async (c) => {
+  const input = await readNoteInput(c.req.raw);
+  const user = c.get('user');
+
+  // 材料が無ければモデルを呼ばない。呼ばないのでクォータも減らさない。
+  // 「書けません」と答えることが、書名から創作するより正しい。
+  if (input.excerpts.length === 0 && !input.blurb) {
+    return c.json({ body: '', grounded: 'none', excerptCount: 0 });
+  }
+
+  // 鍵が無いのは「材料が無い」のとは別の理由。同じ 'none' で返すと、
+  // アプリが「抜き書きを足してください」という的外れな案内を出してしまう。
+  if (!c.env.ANTHROPIC_API_KEY) throw new ApiError(503, 'AI要約はこのサーバーでは使えません');
+
+  await reserveUsage(c.env, user.id, {
+    kind: 'summary',
+    units: 1,
+    microUsd: estimateCharge('summary', 1),
+  });
+  try {
+    return c.json(await generateNoteSummary(c.env, input));
+  } catch {
+    throw new ApiError(502, 'Summary provider request failed');
+  }
+});
+
+app.post('/v1/recap-questions', async (c) => {
+  const input = await readNoteInput(c.req.raw);
+  if (input.excerpts.length === 0) return c.json({ questions: [] });
+
+  if (!c.env.ANTHROPIC_API_KEY) throw new ApiError(503, 'AI要約はこのサーバーでは使えません');
+
+  // 短い設問生成なので quiz の枠で計上する。quota_daily の列は固定
+  // （summary_count / quiz_count / tts_chars / ocr_pages / cover_search_count）で、
+  // 種別を増やすとマイグレーションが要るため。用途も /api/quiz と同質。
+  await reserveUsage(c.env, c.get('user').id, {
+    kind: 'quiz',
+    units: 1,
+    microUsd: estimateCharge('quiz', 1),
+  });
+  try {
+    return c.json(await generateRecapQuestions(c.env, input));
+  } catch {
+    throw new ApiError(502, 'Summary provider request failed');
   }
 });
 
